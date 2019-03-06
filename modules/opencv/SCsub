@@ -15,6 +15,6 @@ env.Append(CPPFLAGS=["-pthread"])
 # link the libs
 env.Append(LINKFLAGS=["-lopencv_core"])
 env.Append(LINKFLAGS=["-lopencv_imgproc"])
-env.Append(CPPFLAGS=["-lopencv_imgcodecs"])
+env.Append(LINKFLAGS=["-lopencv_imgcodecs"])
 env.Append(LINKFLAGS=["-lopencv_highgui"])
 env.Append(LINKFLAGS=["-pthread"])
