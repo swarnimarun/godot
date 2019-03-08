@@ -26,22 +26,37 @@ class OpenCV : public Resource {
 private:
     // some variables for the OpenCV class
     cv::Mat image;
+
+    cv::Mat grey_img;
+    cv::Mat dst;
+
+    cv::String window_name;
+
 public:
     // some variables to be accessible from the Engine side
     String path_to_image;
 
     // default; wait for key press
-    int millisecs = 0;
+    int millisecs;
+
+    int threshold_value;
 
 protected:
 	static void _bind_methods(); // bind the public methods to the class db
 
 public:
     bool load_image();
-    void show_image();
+    void show_window();
+    void update_window();
+    void close_window();
 
-    void set_path_to_image(Variant _path);
-    Variant get_path_to_image() const;
+    void set_threshold();
+    
+    void set_threshold_value(int _val);
+    int get_threshold_value() const;
+
+    void set_path_to_image(String _path);
+    String get_path_to_image() const;
 
     OpenCV();
     ~OpenCV();
