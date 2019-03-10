@@ -36,6 +36,9 @@ public:
     // some variables to be accessible from the Engine side
     String path_to_image;
 
+    int height;
+    int width;
+
     // default; wait for key press
     int millisecs;
 
@@ -49,6 +52,7 @@ public:
     void show_window();
     void update_window();
     void close_window();
+    PoolByteArray get_image() const;
 
     void set_threshold();
     

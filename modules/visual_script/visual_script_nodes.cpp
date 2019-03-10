@@ -1591,6 +1591,132 @@ VisualScriptClassConstant::VisualScriptClassConstant() {
 	base_type = "Object";
 }
 
+// //////////////////////////////////////////
+// ////////////////OPENCV///////////
+// //////////////////////////////////////////
+
+
+// int VisualScriptOpenCV::get_output_sequence_port_count() const {
+
+// 	return 0;
+// }
+
+// bool VisualScriptOpenCV::has_input_sequence_port() const {
+
+// 	return false;
+// }
+
+// int VisualScriptOpenCV::get_input_value_port_count() const {
+
+// 	return 0;
+// }
+// int VisualScriptOpenCV::get_output_value_port_count() const {
+
+// 	return 1;
+// }
+
+// String VisualScriptOpenCV::get_output_sequence_port_text(int p_port) const {
+
+// 	return String();
+// }
+
+// PropertyInfo VisualScriptOpenCV::get_input_value_port_info(int p_idx) const {
+
+// 	return PropertyInfo();
+// }
+
+// PropertyInfo VisualScriptOpenCV::get_output_value_port_info(int p_idx) const {
+
+// 	return PropertyInfo(Variant::INT, String(base_type) + "." + String(name));
+// }
+
+// String VisualScriptOpenCV::get_caption() const {
+
+// 	return "Class Constant";
+// }
+
+// void VisualScriptOpenCV::set_class_constant(const StringName &p_which) {
+
+// 	name = p_which;
+// 	_change_notify();
+// 	ports_changed_notify();
+// }
+
+// StringName VisualScriptOpenCV::get_class_constant() {
+// 	return name;
+// }
+
+// void VisualScriptOpenCV::set_base_type(const StringName &p_which) {
+
+// 	base_type = p_which;
+// 	_change_notify();
+// 	ports_changed_notify();
+// }
+
+// StringName VisualScriptOpenCV::get_base_type() {
+// 	return base_type;
+// }
+
+// class VisualScriptNodeInstanceOpenCV : public VisualScriptNodeInstance {
+// public:
+// 	int value;
+// 	bool valid;
+// 	//virtual int get_working_memory_size() const { return 0; }
+
+// 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+
+// 		if (!valid) {
+// 			r_error_str = "Invalid constant name, pick a valid class constant.";
+// 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
+// 		}
+
+// 		*p_outputs[0] = value;
+// 		return 0;
+// 	}
+// };
+
+// VisualScriptNodeInstance *VisualScriptOpenCV::instance(VisualScriptInstance *p_instance) {
+
+// 	VisualScriptNodeInstanceOpenCV *instance = memnew(VisualScriptNodeInstanceOpenCV);
+// 	instance->value = ClassDB::get_integer_constant(base_type, name, &instance->valid);
+// 	return instance;
+// }
+
+// void VisualScriptOpenCV::_validate_property(PropertyInfo &property) const {
+
+// 	if (property.name == "constant") {
+
+// 		List<String> constants;
+// 		ClassDB::get_integer_constant_list(base_type, &constants, true);
+
+// 		property.hint_string = "";
+// 		for (List<String>::Element *E = constants.front(); E; E = E->next()) {
+// 			if (property.hint_string != String()) {
+// 				property.hint_string += ",";
+// 			}
+// 			property.hint_string += E->get();
+// 		}
+// 	}
+// }
+
+// void VisualScriptOpenCV::_bind_methods() {
+
+// 	ClassDB::bind_method(D_METHOD("set_class_constant", "name"), &VisualScriptOpenCV::set_class_constant);
+// 	ClassDB::bind_method(D_METHOD("get_class_constant"), &VisualScriptOpenCV::get_class_constant);
+
+// 	ClassDB::bind_method(D_METHOD("set_base_type", "name"), &VisualScriptOpenCV::set_base_type);
+// 	ClassDB::bind_method(D_METHOD("get_base_type"), &VisualScriptOpenCV::get_base_type);
+
+// 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_type", PROPERTY_HINT_TYPE_STRING, "Object"), "set_base_type", "get_base_type");
+// 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "constant", PROPERTY_HINT_ENUM, ""), "set_class_constant", "get_class_constant");
+// }
+
+// VisualScriptOpenCV::VisualScriptOpenCV() {
+
+// 	base_type = "Object";
+// }
+
+
 //////////////////////////////////////////
 ////////////////BASICTYPECONSTANT///////////
 //////////////////////////////////////////
