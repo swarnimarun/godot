@@ -52,7 +52,7 @@ public:
     void show_window();
     void update_window();
     void close_window();
-    PoolByteArray get_image() const;
+    Array get_image() const;
 
     void set_threshold();
     

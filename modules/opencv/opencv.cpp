@@ -4,11 +4,15 @@ bool OpenCV::load_image() {
     // load the image at the path
     if (path_to_image.size() <= 0)
         path_to_image = String("/home/minraws/Projects/test/test.jpg");
+
     cv::String path(path_to_image.utf8().get_data());
     image = cv::imread( path, cv::IMREAD_UNCHANGED);
+
     cv::cvtColor(image, grey_img, cv::COLOR_BGR2GRAY);
+
     height = image.rows;   
     width = image.cols;   
+
     return !image.empty();
 }  
 
@@ -21,32 +25,32 @@ void OpenCV::show_window() {
     cv::waitKey(10); // transfer context to godot as soon as possible
 }
 
-PoolByteArray OpenCV::get_image() const {
+Array OpenCV::get_image() const {
+
     
-    // use this pointer data to get all the rows and columns from OpenCV
+    // Be sure that we are dealing with RGB colorspace...
+    cv::Mat rgbFrame(width, height, CV_8UC3);
+    cv::cvtColor(image, rgbFrame, CV_BGR2RGB);
+
     // rows = height
     // column = width
 
-    // returning a PoolByteArray requires us to put less logic here for now to make my life easy at debugging parts of the code...
+    // returning a Array requires us to put less logic here for now to make my life easy at debugging parts of the code...
             // and this can be changed as per the need of the situation....
-    // so Image.data is probably stored as CV_UC1 or something 
+    // so Image.data is probably stored as CV_UC or something 
         // so the plan should be to use imencode to create a memory buffer
             // and use this memory buffer to create an array to use as ImageData
                 // godot seemingly uses RGB8 or whatever we specify  -_- 
 
-    PoolByteArray arr;
+    Array arr;
     arr.resize(height*width*3);
 
-    std::vector<uchar> buffer;
-    cv::imencode( ".jpg", image, buffer);
+    uchar* buffer = rgbFrame.data;
 
-    uchar* data = &buffer[0];  // hopefully everything is stored contigously
-    memcpy( &arr, data, height*width*3 ); // trying to knock myself out here... :P
+    for (int i = 0; i < height*width*3;i++)
+        arr[i] = buffer[i];
 
-    // print_line( String::num_uint64(width) );
     return arr;
-
-    // untested code.... :((
 }
 
 void OpenCV::close_window() {
