@@ -26,11 +26,8 @@ class OpenCV : public Resource {
 private:
     // some variables for the OpenCV class
     cv::Mat image;
-
-    cv::Mat grey_img;
-    cv::Mat dst;
-
-    cv::String window_name;
+    cv::Mat bw_image;
+    cv::Mat processed_image;
 
 public:
     // some variables to be accessible from the Engine side
@@ -39,9 +36,6 @@ public:
     int height;
     int width;
 
-    // default; wait for key press
-    int millisecs;
-
     int threshold_value;
 
 protected:
@@ -49,12 +43,7 @@ protected:
 
 public:
     bool load_image();
-    void show_window();
-    void update_window();
-    void close_window();
-    Array get_image() const;
-
-    void set_threshold();
+    Array get_image(bool get_processed_image);
     
     void set_threshold_value(int _val);
     int get_threshold_value() const;
