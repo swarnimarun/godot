@@ -66,8 +66,8 @@ String OpenCV::get_path_to_image() const {
 }
 
 void OpenCV::set_threshold_value(int _val) {
-    cv::threshold(bw_image, processed_image, threshold_value, 100, 1);
     threshold_value = _val;
+    cv::threshold(bw_image, processed_image, threshold_value, 100, 1);
 }
 
 int OpenCV::get_threshold_value() const {
