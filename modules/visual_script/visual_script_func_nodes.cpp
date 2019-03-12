@@ -1558,7 +1558,7 @@ static Ref<VisualScriptNode> create_opencv_function_call_node(const String &p_na
 //////////////////////////////////////////
 
 int VisualScriptOpenCVOutputTexture::get_input_value_port_count() const {
-	return 3; // OpenCVServer Object, Image Data Array, Object that has texture(TextureRect) 
+	return 2; // OpenCVServer Object, Image Data Array 
 }
 
 int VisualScriptOpenCVOutputTexture::get_output_sequence_port_count() const {
@@ -1566,7 +1566,7 @@ int VisualScriptOpenCVOutputTexture::get_output_sequence_port_count() const {
 }
 
 int VisualScriptOpenCVOutputTexture::get_output_value_port_count() const {
-	return 1;
+	return 2;
 }
 
 bool VisualScriptOpenCVOutputTexture::has_input_sequence_port() const {
@@ -1578,21 +1578,23 @@ String VisualScriptOpenCVOutputTexture::get_output_sequence_port_text(int p_port
 }
 
 PropertyInfo VisualScriptOpenCVOutputTexture::get_output_value_port_info(int p_idx) const {
-	PropertyInfo pi;
-	pi.name = String("pass");
-	pi.type = Variant::OBJECT;
-	return pi;
+	if (p_idx == 0) {
+		PropertyInfo pi;
+		pi.name = String("pass");
+		pi.type = Variant::OBJECT;
+		return pi;
+	} else {
+		PropertyInfo pi;
+		pi.name = String("ImageTexture");
+		pi.type = Variant::OBJECT;
+		return pi;
+	}
 }
 
 PropertyInfo VisualScriptOpenCVOutputTexture::get_input_value_port_info(int p_idx) const {	
 	if (p_idx == 0) {
 		PropertyInfo pi;
 		pi.name = String("OpenCVServer");
-		pi.type = Variant::OBJECT;
-		return pi;
-	} else if (p_idx == 1) {
-		PropertyInfo pi;
-		pi.name = String("TextureRect");
 		pi.type = Variant::OBJECT;
 		return pi;
 	} else {
@@ -1647,27 +1649,23 @@ public:
 		Variant v = *p_inputs[0];
 
 		// get Image Data
-		Variant dt = *p_inputs[2];
+		const Variant *dt = p_inputs[1];
+
+		PoolByteArray img_data = PoolVector<u_int8_t>(*dt);   /// WORKING :-)
 
 		//  things to do here
 		
 		// 1. create a new Image from Image data
 		Ref<Image> img = Object::cast_to<Image>(ClassDB::instance("Image"));
 		Vector2 vec = v.call(StringName("get_image_size"), NULL, 0, r_error);
-		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, *Object::cast_to<PoolByteArray>(dt));
+		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, img_data);         ///// SO THIS WORKS NOW :)111 
 		
 		// 2. create ImageTexture from that Image
-		ImageTexture* image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
+		Ref<ImageTexture> image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
 		image_tex->create_from_image(img);
-		
-		// load that image texture into a TextureRect
-		Variant texr = *p_inputs[1];
-		// Ok had to hack a lot of things today
-		const Variant *inp = const_cast<Variant *>(Object::cast_to<Variant>(image_tex));
-		const Variant **input_r = &inp;
-		auto test = texr.call(StringName("set_texture"), input_r, 1, r_error);  // hopefully this works
 
 		*p_outputs[0] = *p_inputs[0];
+		*p_outputs[1] = image_tex;
 
 		if (!validate) {
 			//ignore call errors if validation is disabled
