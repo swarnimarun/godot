@@ -1527,7 +1527,7 @@ VisualScriptNodeInstance *VisualScriptOpenCVFunctionCall::instance(VisualScriptI
 	return instance;
 }
 
-VisualScriptFunctionCall::TypeGuess VisualScriptOpenCVFunctionCall::guess_output_type(TypeGuess *p_inputs, int p_output) const {
+VisualScriptOpenCVFunctionCall::TypeGuess VisualScriptOpenCVFunctionCall::guess_output_type(TypeGuess *p_inputs, int p_output) const {
 
 	if (p_output == 0) {
 		return p_inputs[0];
@@ -1558,7 +1558,7 @@ static Ref<VisualScriptNode> create_opencv_function_call_node(const String &p_na
 //////////////////////////////////////////
 
 int VisualScriptOpenCVOutputTexture::get_input_value_port_count() const {
-	return 2; // OpenCVServer Object, Image Data Array, Object that has texture(TextureRect) 
+	return 3; // OpenCVServer Object, Image Data Array, Object that has texture(TextureRect) 
 }
 
 int VisualScriptOpenCVOutputTexture::get_output_sequence_port_count() const {
@@ -1590,10 +1590,15 @@ PropertyInfo VisualScriptOpenCVOutputTexture::get_input_value_port_info(int p_id
 		pi.name = String("OpenCVServer");
 		pi.type = Variant::OBJECT;
 		return pi;
-	} else {
+	} else if (p_idx == 1) {
 		PropertyInfo pi;
 		pi.name = String("TextureRect");
 		pi.type = Variant::OBJECT;
+		return pi;
+	} else {
+		PropertyInfo pi;
+		pi.name = String("ImageData");
+		pi.type = Variant::ARRAY;
 		return pi;
 	}
 }
@@ -1642,15 +1647,14 @@ public:
 		Variant v = *p_inputs[0];
 
 		// get Image Data
-		Variant dt = v.call(StringName("get_image_data"), NULL, 0, r_error);
-		PoolByteArray *img_data = Object::cast_to<PoolByteArray>(dt);
+		Variant dt = *p_inputs[2];
 
 		//  things to do here
 		
 		// 1. create a new Image from Image data
-		Image* img = Object::cast_to<Image>(ClassDB::instance("Image"));
+		Ref<Image> img = Object::cast_to<Image>(ClassDB::instance("Image"));
 		Vector2 vec = v.call(StringName("get_image_size"), NULL, 0, r_error);
-		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, *img_data);
+		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, *Object::cast_to<PoolByteArray>(dt));
 		
 		// 2. create ImageTexture from that Image
 		ImageTexture* image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
@@ -1685,9 +1689,22 @@ VisualScriptNodeInstance *VisualScriptOpenCVOutputTexture::instance(VisualScript
 	instance->validate = validate;
 	return instance;
 }
+
+VisualScriptOpenCVOutputTexture::TypeGuess VisualScriptOpenCVOutputTexture::guess_output_type(TypeGuess *p_inputs, int p_output) const {
+
+	if (p_output == 0) {
+		return p_inputs[0];
+	}
+
+	return VisualScriptNode::guess_output_type(p_inputs, p_output);
+}
+
 VisualScriptOpenCVOutputTexture::VisualScriptOpenCVOutputTexture() {
 	validate = false;
 }
+
+
+
 //////////////////////////////////////////
 ////////////////SET//////////////////////
 //////////////////////////////////////////
