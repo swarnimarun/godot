@@ -1606,18 +1606,18 @@ String VisualScriptOpenCVOutputTexture::get_text() const {
 	return String("");
 }
 
-void VisualScriptOpenCVFunctionCall::set_validate(bool val) {
+void VisualScriptOpenCVOutputTexture::set_validate(bool val) {
 	validate = val;
 }
 
-bool VisualScriptOpenCVFunctionCall::get_validate() const {
+bool VisualScriptOpenCVOutputTexture::get_validate() const {
 	return validate;
 }
 
-void VisualScriptOpenCVFunctionCall::_bind_methods() {
+void VisualScriptOpenCVOutputTexture::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVFunctionCall::set_validate);
-	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVFunctionCall::get_validate);
+	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVOutputTexture::set_validate);
+	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVOutputTexture::get_validate);
 
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "validate"), "set_validate", "get_validate");
@@ -1659,7 +1659,7 @@ public:
 		// load that image texture into a TextureRect
 		Variant texr = *p_inputs[1];
 		// Ok had to hack a lot of things today
-		Variant *inp = Object::cast_to<Variant>(image_tex);
+		const Variant *inp = const_cast<Variant *>(Object::cast_to<Variant>(image_tex));
 		const Variant **input_r = &inp;
 		auto test = texr.call(StringName("set_texture"), input_r, 1, r_error);  // hopefully this works
 

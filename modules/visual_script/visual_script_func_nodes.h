@@ -235,7 +235,7 @@ class VisualScriptOpenCVOutputTexture: public VisualScriptNode {
 	bool validate;
 
 protected:
-	virtual void _validate_property(PropertyInfo &property) const;
+	//virtual void _validate_property(PropertyInfo &property) const;
 	static void _bind_methods();
 
 public:
@@ -255,13 +255,16 @@ public:
 	virtual String get_text() const;
 	virtual String get_category() const { return "functions"; };
 
+	void set_validate(bool p_amount);
+	bool get_validate() const;
+
 	//used by editor, this is not really saved
 	// void set_breakpoint(bool p_breakpoint);
 	// bool is_breakpoint() const;
 
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
 	
-	virtual TypeGuess guess_output_type(TypeGuess *p_inputs, int p_output) const;
+	//virtual TypeGuess guess_output_type(TypeGuess *p_inputs, int p_output) const;
 
 	VisualScriptOpenCVOutputTexture();
 };
