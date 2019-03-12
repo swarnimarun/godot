@@ -142,13 +142,6 @@ class VisualScriptOpenCVFunctionCall : public VisualScriptNode {
 
 	GDCLASS(VisualScriptOpenCVFunctionCall, VisualScriptNode)
 public:
-	enum CallMode {
-		CALL_MODE_SELF,
-		CALL_MODE_NODE_PATH,
-		CALL_MODE_INSTANCE,
-		CALL_MODE_BASIC_TYPE,
-		CALL_MODE_SINGLETON,
-	};
 
 	enum RPCCallMode {
 		RPC_DISABLED,
@@ -159,9 +152,8 @@ public:
 	};
 
 private:
-	CallMode call_mode;
 	StringName base_type;
-	String base_script;
+	//String base_script;
 	Variant::Type basic_type;
 	NodePath base_path;
 	StringName function;
@@ -206,8 +198,8 @@ public:
 	void set_base_type(const StringName &p_type);
 	StringName get_base_type() const;
 
-	void set_base_script(const String &p_path);
-	String get_base_script() const;
+	//void set_base_script(const String &p_path);
+	//String get_base_script() const;
 
 	void set_singleton(const StringName &p_type);
 	StringName get_singleton() const;
@@ -217,9 +209,6 @@ public:
 
 	void set_base_path(const NodePath &p_type);
 	NodePath get_base_path() const;
-
-	void set_call_mode(CallMode p_mode);
-	CallMode get_call_mode() const;
 
 	void set_use_default_args(int p_amount);
 	int get_use_default_args() const;
@@ -237,8 +226,45 @@ public:
 	VisualScriptOpenCVFunctionCall();
 };
 
-VARIANT_ENUM_CAST(VisualScriptOpenCVFunctionCall::CallMode);
 VARIANT_ENUM_CAST(VisualScriptOpenCVFunctionCall::RPCCallMode);
+
+class VisualScriptOpenCVOutputTexture: public VisualScriptNode {
+
+	GDCLASS(VisualScriptOpenCVOutputTexture, VisualScriptNode)
+
+	bool validate;
+
+protected:
+	virtual void _validate_property(PropertyInfo &property) const;
+	static void _bind_methods();
+
+public:
+
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+	
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual int get_input_value_port_count() const;
+	virtual int get_output_value_port_count() const;
+	
+	virtual PropertyInfo get_input_value_port_info(int p_idx) const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
+
+	virtual String get_caption() const;
+	virtual String get_text() const;
+	virtual String get_category() const { return "functions"; };
+
+	//used by editor, this is not really saved
+	// void set_breakpoint(bool p_breakpoint);
+	// bool is_breakpoint() const;
+
+	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
+	
+	virtual TypeGuess guess_output_type(TypeGuess *p_inputs, int p_output) const;
+
+	VisualScriptOpenCVOutputTexture();
+};
 
 class VisualScriptPropertySet : public VisualScriptNode {
 

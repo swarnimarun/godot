@@ -43,7 +43,7 @@ bool OpenCVServer::load_source_from_path(String image) {
     height = source.rows;   
     width = source.cols;   
 
-    image_data->resize(height*width*3);
+    //image_data->resize(height*width*3);
 
     return true;
 }

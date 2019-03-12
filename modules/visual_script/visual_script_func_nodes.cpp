@@ -943,19 +943,11 @@ static Ref<VisualScriptNode> create_function_call_node(const String &p_name) {
 //////////////////////////////////////////
 
 int VisualScriptOpenCVFunctionCall::get_output_sequence_port_count() const {
-
-	if ((method_cache.flags & METHOD_FLAG_CONST && call_mode != CALL_MODE_INSTANCE) || (call_mode == CALL_MODE_BASIC_TYPE && Variant::is_method_const(basic_type, function)))
-		return 0;
-	else
-		return 1;
+	return 1;
 }
 
 bool VisualScriptOpenCVFunctionCall::has_input_sequence_port() const {
-
-	if ((method_cache.flags & METHOD_FLAG_CONST && call_mode != CALL_MODE_INSTANCE) || (call_mode == CALL_MODE_BASIC_TYPE && Variant::is_method_const(basic_type, function)))
-		return false;
-	else
-		return true;
+	return true;
 }
 
 Node *VisualScriptOpenCVFunctionCall::_get_base_node() const {
@@ -995,55 +987,30 @@ Node *VisualScriptOpenCVFunctionCall::_get_base_node() const {
 
 StringName VisualScriptOpenCVFunctionCall::_get_base_type() const {
 
-	if (call_mode == CALL_MODE_SELF && get_visual_script().is_valid())
-		return get_visual_script()->get_instance_base_type();
-	else if (call_mode == CALL_MODE_NODE_PATH && get_visual_script().is_valid()) {
-		Node *path = _get_base_node();
-		if (path)
-			return path->get_class();
-	}
-
 	return base_type;
 }
 
 int VisualScriptOpenCVFunctionCall::get_input_value_port_count() const {
 
-	if (call_mode == CALL_MODE_BASIC_TYPE) {
-		Vector<Variant::Type> types = Variant::get_method_argument_types(basic_type, function);
-		return types.size() + (rpc_call_mode >= RPC_RELIABLE_TO_ID ? 1 : 0) + 1;
-
-	} else {
-
-		MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
-		if (mb) {
-			return mb->get_argument_count() + (call_mode == CALL_MODE_INSTANCE ? 1 : 0) + (rpc_call_mode >= RPC_RELIABLE_TO_ID ? 1 : 0) - use_default_args;
-		}
-
-		return method_cache.arguments.size() + (call_mode == CALL_MODE_INSTANCE ? 1 : 0) + (rpc_call_mode >= RPC_RELIABLE_TO_ID ? 1 : 0) - use_default_args;
+	MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
+	if (mb) {
+		return mb->get_argument_count() + 1 + (rpc_call_mode >= RPC_RELIABLE_TO_ID ? 1 : 0) - use_default_args;
 	}
+
+	return method_cache.arguments.size() + 1 + (rpc_call_mode >= RPC_RELIABLE_TO_ID ? 1 : 0) - use_default_args;
 }
 int VisualScriptOpenCVFunctionCall::get_output_value_port_count() const {
 
-	if (call_mode == CALL_MODE_BASIC_TYPE) {
+	int ret;
+	MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
+	if (mb) {
+		ret = mb->has_return() ? 1 : 0;
+	} else
+		ret = 1; //it is assumed that script always returns something
 
-		bool returns = false;
-		Variant::get_method_return_type(basic_type, function, &returns);
-		return returns ? 1 : 0;
+	ret++;
 
-	} else {
-		int ret;
-		MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
-		if (mb) {
-			ret = mb->has_return() ? 1 : 0;
-		} else
-			ret = 1; //it is assumed that script always returns something
-
-		if (call_mode == CALL_MODE_INSTANCE) {
-			ret++;
-		}
-
-		return ret;
-	}
+	return ret;
 }
 
 String VisualScriptOpenCVFunctionCall::get_output_sequence_port_text(int p_port) const {
@@ -1053,15 +1020,13 @@ String VisualScriptOpenCVFunctionCall::get_output_sequence_port_text(int p_port)
 
 PropertyInfo VisualScriptOpenCVFunctionCall::get_input_value_port_info(int p_idx) const {
 
-	if (call_mode == CALL_MODE_INSTANCE || call_mode == CALL_MODE_BASIC_TYPE) {
-		if (p_idx == 0) {
-			PropertyInfo pi;
-			pi.type = (call_mode == CALL_MODE_INSTANCE ? Variant::OBJECT : basic_type);
-			pi.name = (call_mode == CALL_MODE_INSTANCE ? String("instance") : Variant::get_type_name(basic_type).to_lower());
-			return pi;
-		} else {
-			p_idx--;
-		}
+	if (p_idx == 0) {
+		PropertyInfo pi;
+		pi.type = Variant::OBJECT;
+		pi.name = String("instance");
+		return pi;
+	} else {
+		p_idx--;
 	}
 
 	if (rpc_call_mode >= RPC_RELIABLE_TO_ID) {
@@ -1075,25 +1040,16 @@ PropertyInfo VisualScriptOpenCVFunctionCall::get_input_value_port_info(int p_idx
 
 #ifdef DEBUG_METHODS_ENABLED
 
-	if (call_mode == CALL_MODE_BASIC_TYPE) {
-
-		Vector<StringName> names = Variant::get_method_argument_names(basic_type, function);
-		Vector<Variant::Type> types = Variant::get_method_argument_types(basic_type, function);
-		return PropertyInfo(types[p_idx], names[p_idx]);
-
-	} else {
-
-		MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
-		if (mb) {
-			return mb->get_argument_info(p_idx);
-		}
-
-		if (p_idx >= 0 && p_idx < method_cache.arguments.size()) {
-			return method_cache.arguments[p_idx];
-		}
-
-		return PropertyInfo();
+	MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
+	if (mb) {
+		return mb->get_argument_info(p_idx);
 	}
+
+	if (p_idx >= 0 && p_idx < method_cache.arguments.size()) {
+		return method_cache.arguments[p_idx];
+	}
+
+	return PropertyInfo();
 #else
 	return PropertyInfo();
 #endif
@@ -1103,54 +1059,34 @@ PropertyInfo VisualScriptOpenCVFunctionCall::get_output_value_port_info(int p_id
 
 #ifdef DEBUG_METHODS_ENABLED
 
-	if (call_mode == CALL_MODE_BASIC_TYPE) {
-
-		return PropertyInfo(Variant::get_method_return_type(basic_type, function), "");
+	if (p_idx == 0) {
+		return PropertyInfo(Variant::OBJECT, "pass", PROPERTY_HINT_TYPE_STRING, get_base_type());
 	} else {
-
-		if (call_mode == CALL_MODE_INSTANCE) {
-			if (p_idx == 0) {
-				return PropertyInfo(Variant::OBJECT, "pass", PROPERTY_HINT_TYPE_STRING, get_base_type());
-			} else {
-				p_idx--;
-			}
-		}
-
-		PropertyInfo ret;
-
-		/*MethodBind *mb = ClassDB::get_method(_get_base_type(),function);
-		if (mb) {
-
-			ret = mb->get_argument_info(-1);
-		} else {*/
-
-		ret = method_cache.return_val;
-
-		//}
-
-		if (call_mode == CALL_MODE_INSTANCE) {
-			ret.name = "return";
-		} else {
-			ret.name = "";
-		}
-		return ret;
+		p_idx--;
 	}
+
+	PropertyInfo ret;
+
+	/*MethodBind *mb = ClassDB::get_method(_get_base_type(),function);
+	if (mb) {
+
+		ret = mb->get_argument_info(-1);
+	} else {*/
+
+	ret = method_cache.return_val;
+
+	//}
+
+	ret.name = "return";
+
+	return ret;
 #else
 	return PropertyInfo();
 #endif
 }
 
 String VisualScriptOpenCVFunctionCall::get_caption() const {
-	if (call_mode == CALL_MODE_SELF)
-		return "  " + String(function) + "()";
-	if (call_mode == CALL_MODE_SINGLETON)
-		return String(singleton) + ":" + String(function) + "()";
-	else if (call_mode == CALL_MODE_BASIC_TYPE)
-		return Variant::get_type_name(basic_type) + "." + String(function) + "()";
-	else if (call_mode == CALL_MODE_NODE_PATH)
-		return " [" + String(base_path.simplified()) + "]." + String(function) + "()";
-	else
-		return "  " + base_type + "." + String(function) + "()";
+	return "  " + base_type + "." + String(function) + "()";
 }
 
 String VisualScriptOpenCVFunctionCall::get_text() const {
@@ -1178,12 +1114,14 @@ Variant::Type VisualScriptOpenCVFunctionCall::get_basic_type() const {
 
 void VisualScriptOpenCVFunctionCall::set_base_type(const StringName &p_type) {
 
-	if (base_type == p_type)
-		return;
+	return;
+	
+	// if (base_type == p_type)
+	// 	return;
 
-	base_type = p_type;
-	_change_notify();
-	ports_changed_notify();
+	// base_type = p_type;
+	// _change_notify();
+	// ports_changed_notify();
 }
 
 StringName VisualScriptOpenCVFunctionCall::get_base_type() const {
@@ -1191,20 +1129,20 @@ StringName VisualScriptOpenCVFunctionCall::get_base_type() const {
 	return base_type;
 }
 
-void VisualScriptOpenCVFunctionCall::set_base_script(const String &p_path) {
+// void VisualScriptOpenCVFunctionCall::set_base_script(const String &p_path) {
 
-	if (base_script == p_path)
-		return;
+// 	if (base_script == p_path)
+// 		return;
 
-	base_script = p_path;
-	_change_notify();
-	ports_changed_notify();
-}
+// 	base_script = p_path;
+// 	_change_notify();
+// 	ports_changed_notify();
+// }
 
-String VisualScriptOpenCVFunctionCall::get_base_script() const {
+// String VisualScriptOpenCVFunctionCall::get_base_script() const {
 
-	return base_script;
-}
+// 	return base_script;
+// }
 
 void VisualScriptOpenCVFunctionCall::set_singleton(const StringName &p_type) {
 
@@ -1230,48 +1168,22 @@ void VisualScriptOpenCVFunctionCall::_update_method_cache() {
 	StringName type;
 	Ref<Script> script;
 
-	if (call_mode == CALL_MODE_NODE_PATH) {
 
-		Node *node = _get_base_node();
-		if (node) {
-			type = node->get_class();
-			base_type = type; //cache, too
-			script = node->get_script();
-		}
-	} else if (call_mode == CALL_MODE_SELF) {
+	type = base_type;
+	// if (base_script != String()) {
 
-		if (get_visual_script().is_valid()) {
-			type = get_visual_script()->get_instance_base_type();
-			base_type = type; //cache, too
-			script = get_visual_script();
-		}
+	// 	if (!ResourceCache::has(base_script) && ScriptServer::edit_request_func) {
 
-	} else if (call_mode == CALL_MODE_SINGLETON) {
+	// 		ScriptServer::edit_request_func(base_script); //make sure it's loaded
+	// 	}
 
-		Object *obj = Engine::get_singleton()->get_singleton_object(singleton);
-		if (obj) {
-			type = obj->get_class();
-			script = obj->get_script();
-		}
+	// 	if (ResourceCache::has(base_script)) {
 
-	} else if (call_mode == CALL_MODE_INSTANCE) {
-
-		type = base_type;
-		if (base_script != String()) {
-
-			if (!ResourceCache::has(base_script) && ScriptServer::edit_request_func) {
-
-				ScriptServer::edit_request_func(base_script); //make sure it's loaded
-			}
-
-			if (ResourceCache::has(base_script)) {
-
-				script = Ref<Resource>(ResourceCache::get(base_script));
-			} else {
-				return;
-			}
-		}
-	}
+	// 		script = Ref<Resource>(ResourceCache::get(base_script));
+	// 	} else {
+	// 		return;
+	// 	}
+	// }
 
 	MethodBind *mb = ClassDB::get_method(type, function);
 	if (mb) {
@@ -1315,13 +1227,7 @@ void VisualScriptOpenCVFunctionCall::set_function(const StringName &p_type) {
 
 	function = p_type;
 
-	if (call_mode == CALL_MODE_BASIC_TYPE) {
-		use_default_args = Variant::get_method_default_arguments(basic_type, function).size();
-	} else {
-		//update all caches
-
-		_update_method_cache();
-	}
+	_update_method_cache();
 
 	_change_notify();
 	ports_changed_notify();
@@ -1344,20 +1250,6 @@ void VisualScriptOpenCVFunctionCall::set_base_path(const NodePath &p_type) {
 NodePath VisualScriptOpenCVFunctionCall::get_base_path() const {
 
 	return base_path;
-}
-
-void VisualScriptOpenCVFunctionCall::set_call_mode(CallMode p_mode) {
-
-	if (call_mode == p_mode)
-		return;
-
-	call_mode = p_mode;
-	_change_notify();
-	ports_changed_notify();
-}
-VisualScriptOpenCVFunctionCall::CallMode VisualScriptOpenCVFunctionCall::get_call_mode() const {
-
-	return call_mode;
 }
 
 void VisualScriptOpenCVFunctionCall::set_use_default_args(int p_amount) {
@@ -1410,106 +1302,40 @@ Dictionary VisualScriptOpenCVFunctionCall::_get_argument_cache() const {
 
 void VisualScriptOpenCVFunctionCall::_validate_property(PropertyInfo &property) const {
 
-	if (property.name == "base_type") {
-		if (call_mode != CALL_MODE_INSTANCE) {
-			property.usage = PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL;
-		}
-	}
-
-	if (property.name == "base_script") {
-		if (call_mode != CALL_MODE_INSTANCE) {
-			property.usage = 0;
-		}
-	}
-
 	if (property.name == "basic_type") {
-		if (call_mode != CALL_MODE_BASIC_TYPE) {
-			property.usage = 0;
-		}
+		property.usage = 0;
 	}
 
 	if (property.name == "singleton") {
-		if (call_mode != CALL_MODE_SINGLETON) {
-			property.usage = 0;
-		} else {
-			List<Engine::Singleton> names;
-			Engine::get_singleton()->get_singletons(&names);
-			property.hint = PROPERTY_HINT_ENUM;
-			String sl;
-			for (List<Engine::Singleton>::Element *E = names.front(); E; E = E->next()) {
-				if (sl != String())
-					sl += ",";
-				sl += E->get().name;
-			}
-			property.hint_string = sl;
-		}
+		property.usage = 0;
 	}
 
 	if (property.name == "node_path") {
-		if (call_mode != CALL_MODE_NODE_PATH) {
-			property.usage = 0;
-		} else {
-
-			Node *bnode = _get_base_node();
-			if (bnode) {
-				property.hint_string = bnode->get_path(); //convert to loong string
-			} else {
-			}
-		}
+		property.usage = 0;
 	}
 
 	if (property.name == "function") {
 
-		if (call_mode == CALL_MODE_BASIC_TYPE) {
+		property.hint = PROPERTY_HINT_METHOD_OF_BASE_TYPE;
+		property.hint_string = base_type;
 
-			property.hint = PROPERTY_HINT_METHOD_OF_VARIANT_TYPE;
-			property.hint_string = Variant::get_type_name(basic_type);
+		// if (base_script != String()) {
+		// 	if (!ResourceCache::has(base_script) && ScriptServer::edit_request_func) {
 
-		} else if (call_mode == CALL_MODE_SELF && get_visual_script().is_valid()) {
-			property.hint = PROPERTY_HINT_METHOD_OF_SCRIPT;
-			property.hint_string = itos(get_visual_script()->get_instance_id());
-		} else if (call_mode == CALL_MODE_SINGLETON) {
+		// 		ScriptServer::edit_request_func(base_script); //make sure it's loaded
+		// 	}
 
-			Object *obj = Engine::get_singleton()->get_singleton_object(singleton);
-			if (obj) {
-				property.hint = PROPERTY_HINT_METHOD_OF_INSTANCE;
-				property.hint_string = itos(obj->get_instance_id());
-			} else {
+		// 	if (ResourceCache::has(base_script)) {
 
-				property.hint = PROPERTY_HINT_METHOD_OF_BASE_TYPE;
-				property.hint_string = base_type; //should be cached
-			}
-		} else if (call_mode == CALL_MODE_INSTANCE) {
-			property.hint = PROPERTY_HINT_METHOD_OF_BASE_TYPE;
-			property.hint_string = base_type;
+		// 		Ref<Script> script = Ref<Resource>(ResourceCache::get(base_script));
+		// 		if (script.is_valid()) {
 
-			if (base_script != String()) {
-				if (!ResourceCache::has(base_script) && ScriptServer::edit_request_func) {
+		// 			property.hint = PROPERTY_HINT_METHOD_OF_SCRIPT;
+		// 			property.hint_string = itos(script->get_instance_id());
+		// 		}
+		// 	}
+		// }
 
-					ScriptServer::edit_request_func(base_script); //make sure it's loaded
-				}
-
-				if (ResourceCache::has(base_script)) {
-
-					Ref<Script> script = Ref<Resource>(ResourceCache::get(base_script));
-					if (script.is_valid()) {
-
-						property.hint = PROPERTY_HINT_METHOD_OF_SCRIPT;
-						property.hint_string = itos(script->get_instance_id());
-					}
-				}
-			}
-
-		} else if (call_mode == CALL_MODE_NODE_PATH) {
-			Node *node = _get_base_node();
-			if (node) {
-				property.hint = PROPERTY_HINT_METHOD_OF_INSTANCE;
-				property.hint_string = itos(node->get_instance_id());
-			} else {
-				property.hint = PROPERTY_HINT_METHOD_OF_BASE_TYPE;
-				property.hint_string = get_base_type();
-			}
-		}
 	}
 
 	if (property.name == "use_default_args") {
@@ -1518,16 +1344,11 @@ void VisualScriptOpenCVFunctionCall::_validate_property(PropertyInfo &property) 
 
 		int mc = 0;
 
-		if (call_mode == CALL_MODE_BASIC_TYPE) {
-
-			mc = Variant::get_method_default_arguments(basic_type, function).size();
-		} else {
-			MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
+		MethodBind *mb = ClassDB::get_method(_get_base_type(), function);
 			if (mb) {
 
 				mc = mb->get_default_argument_count();
 			}
-		}
 
 		if (mc == 0) {
 			property.usage = 0; //do not show
@@ -1537,11 +1358,6 @@ void VisualScriptOpenCVFunctionCall::_validate_property(PropertyInfo &property) 
 		}
 	}
 
-	if (property.name == "rpc_call_mode") {
-		if (call_mode == CALL_MODE_BASIC_TYPE) {
-			property.usage = 0;
-		}
-	}
 }
 
 void VisualScriptOpenCVFunctionCall::_bind_methods() {
@@ -1549,8 +1365,8 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_base_type", "base_type"), &VisualScriptOpenCVFunctionCall::set_base_type);
 	ClassDB::bind_method(D_METHOD("get_base_type"), &VisualScriptOpenCVFunctionCall::get_base_type);
 
-	ClassDB::bind_method(D_METHOD("set_base_script", "base_script"), &VisualScriptOpenCVFunctionCall::set_base_script);
-	ClassDB::bind_method(D_METHOD("get_base_script"), &VisualScriptOpenCVFunctionCall::get_base_script);
+	// ClassDB::bind_method(D_METHOD("set_base_script", "base_script"), &VisualScriptOpenCVFunctionCall::set_base_script);
+	// ClassDB::bind_method(D_METHOD("get_base_script"), &VisualScriptOpenCVFunctionCall::get_base_script);
 
 	ClassDB::bind_method(D_METHOD("set_basic_type", "basic_type"), &VisualScriptOpenCVFunctionCall::set_basic_type);
 	ClassDB::bind_method(D_METHOD("get_basic_type"), &VisualScriptOpenCVFunctionCall::get_basic_type);
@@ -1560,9 +1376,6 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_function", "function"), &VisualScriptOpenCVFunctionCall::set_function);
 	ClassDB::bind_method(D_METHOD("get_function"), &VisualScriptOpenCVFunctionCall::get_function);
-
-	ClassDB::bind_method(D_METHOD("set_call_mode", "mode"), &VisualScriptOpenCVFunctionCall::set_call_mode);
-	ClassDB::bind_method(D_METHOD("get_call_mode"), &VisualScriptOpenCVFunctionCall::get_call_mode);
 
 	ClassDB::bind_method(D_METHOD("set_base_path", "base_path"), &VisualScriptOpenCVFunctionCall::set_base_path);
 	ClassDB::bind_method(D_METHOD("get_base_path"), &VisualScriptOpenCVFunctionCall::get_base_path);
@@ -1599,9 +1412,8 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 		script_ext_hint += "*." + E->get();
 	}
 
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "call_mode", PROPERTY_HINT_ENUM, "Self,Node Path,Instance,Basic Type,Singleton"), "set_call_mode", "get_call_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_type", PROPERTY_HINT_TYPE_STRING, "Object"), "set_base_type", "get_base_type");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_script", PROPERTY_HINT_FILE, script_ext_hint), "set_base_script", "get_base_script");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_type", PROPERTY_HINT_TYPE_STRING, "OpenCVServer"), "set_base_type", "get_base_type");
+	// ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_script", PROPERTY_HINT_FILE, script_ext_hint), "set_base_script", "get_base_script");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "singleton"), "set_singleton", "get_singleton");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "basic_type", PROPERTY_HINT_ENUM, bt), "set_basic_type", "get_basic_type");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "node_path", PROPERTY_HINT_NODE_PATH_TO_EDITED_NODE), "set_base_path", "get_base_path");
@@ -1611,11 +1423,6 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "validate"), "set_validate", "get_validate");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "rpc_call_mode", PROPERTY_HINT_ENUM, "Disabled,Reliable,Unreliable,ReliableToID,UnreliableToID"), "set_rpc_call_mode", "get_rpc_call_mode"); //when set, if loaded properly, will override argument count.
 
-	BIND_ENUM_CONSTANT(CALL_MODE_SELF);
-	BIND_ENUM_CONSTANT(CALL_MODE_NODE_PATH);
-	BIND_ENUM_CONSTANT(CALL_MODE_INSTANCE);
-	BIND_ENUM_CONSTANT(CALL_MODE_BASIC_TYPE);
-	BIND_ENUM_CONSTANT(CALL_MODE_SINGLETON);
 
 	BIND_ENUM_CONSTANT(RPC_DISABLED);
 	BIND_ENUM_CONSTANT(RPC_RELIABLE);
@@ -1626,7 +1433,6 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 
 class VisualScriptNodeInstanceOpenCVFunctionCall : public VisualScriptNodeInstance {
 public:
-	VisualScriptOpenCVFunctionCall::CallMode call_mode;
 	NodePath node_path;
 	int input_args;
 	bool validate;
@@ -1672,96 +1478,28 @@ public:
 
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
 
-		switch (call_mode) {
+		Variant v = *p_inputs[0];
 
-			case VisualScriptOpenCVFunctionCall::CALL_MODE_SELF: {
-
-				Object *object = instance->get_owner_ptr();
-
-				if (rpc_mode) {
-					call_rpc(object, p_inputs, input_args);
-				} else if (returns) {
-					*p_outputs[0] = object->call(function, p_inputs, input_args, r_error);
-				} else {
-					object->call(function, p_inputs, input_args, r_error);
-				}
-			} break;
-			case VisualScriptOpenCVFunctionCall::CALL_MODE_NODE_PATH: {
-
-				Node *node = Object::cast_to<Node>(instance->get_owner_ptr());
-				if (!node) {
-					r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
-					r_error_str = "Base object is not a Node!";
-					return 0;
-				}
-
-				Node *another = node->get_node(node_path);
-				if (!another) {
-					r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
-					r_error_str = "Path does not lead Node!";
-					return 0;
-				}
-
-				if (rpc_mode) {
-					call_rpc(node, p_inputs, input_args);
-				} else if (returns) {
-					*p_outputs[0] = another->call(function, p_inputs, input_args, r_error);
-				} else {
-					another->call(function, p_inputs, input_args, r_error);
-				}
-
-			} break;
-			case VisualScriptOpenCVFunctionCall::CALL_MODE_INSTANCE:
-			case VisualScriptOpenCVFunctionCall::CALL_MODE_BASIC_TYPE: {
-
-				Variant v = *p_inputs[0];
-
-				if (rpc_mode) {
-					Object *obj = v;
-					if (obj) {
-						call_rpc(obj, p_inputs + 1, input_args - 1);
-					}
-				} else if (returns) {
-					if (call_mode == VisualScriptOpenCVFunctionCall::CALL_MODE_INSTANCE) {
-						if (returns >= 2) {
-							*p_outputs[1] = v.call(function, p_inputs + 1, input_args, r_error);
-						} else if (returns == 1) {
-							v.call(function, p_inputs + 1, input_args, r_error);
-						} else {
-							r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
-							r_error_str = "Invalid returns count for call_mode == CALL_MODE_INSTANCE";
-							return 0;
-						}
-					} else {
-						*p_outputs[0] = v.call(function, p_inputs + 1, input_args, r_error);
-					}
-				} else {
-					v.call(function, p_inputs + 1, input_args, r_error);
-				}
-
-				if (call_mode == VisualScriptOpenCVFunctionCall::CALL_MODE_INSTANCE) {
-					*p_outputs[0] = *p_inputs[0];
-				}
-
-			} break;
-			case VisualScriptOpenCVFunctionCall::CALL_MODE_SINGLETON: {
-
-				Object *object = Engine::get_singleton()->get_singleton_object(singleton);
-				if (!object) {
-					r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
-					r_error_str = "Invalid singleton name: '" + String(singleton) + "'";
-					return 0;
-				}
-
-				if (rpc_mode) {
-					call_rpc(object, p_inputs, input_args);
-				} else if (returns) {
-					*p_outputs[0] = object->call(function, p_inputs, input_args, r_error);
-				} else {
-					object->call(function, p_inputs, input_args, r_error);
-				}
-			} break;
+		if (rpc_mode) {
+			Object *obj = v;
+			if (obj) {
+				call_rpc(obj, p_inputs + 1, input_args - 1);
+			}
+		} else if (returns) {
+			if (returns >= 2) {
+				*p_outputs[1] = v.call(function, p_inputs + 1, input_args, r_error);
+			} else if (returns == 1) {
+				v.call(function, p_inputs + 1, input_args, r_error);
+			} else {
+				r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
+				r_error_str = "Invalid returns count for call_mode == CALL_MODE_INSTANCE";
+				return 0;
+			}
+		} else {
+			v.call(function, p_inputs + 1, input_args, r_error);
 		}
+
+		*p_outputs[0] = *p_inputs[0];
 
 		if (!validate) {
 
@@ -1781,10 +1519,9 @@ VisualScriptNodeInstance *VisualScriptOpenCVFunctionCall::instance(VisualScriptI
 	instance->instance = p_instance;
 	instance->singleton = singleton;
 	instance->function = function;
-	instance->call_mode = call_mode;
 	instance->returns = get_output_value_port_count();
 	instance->node_path = base_path;
-	instance->input_args = get_input_value_port_count() - ((call_mode == CALL_MODE_BASIC_TYPE || call_mode == CALL_MODE_INSTANCE) ? 1 : 0);
+	instance->input_args = get_input_value_port_count() - 1;
 	instance->rpc_mode = rpc_call_mode;
 	instance->validate = validate;
 	return instance;
@@ -1792,7 +1529,7 @@ VisualScriptNodeInstance *VisualScriptOpenCVFunctionCall::instance(VisualScriptI
 
 VisualScriptFunctionCall::TypeGuess VisualScriptOpenCVFunctionCall::guess_output_type(TypeGuess *p_inputs, int p_output) const {
 
-	if (p_output == 0 && call_mode == CALL_MODE_INSTANCE) {
+	if (p_output == 0) {
 		return p_inputs[0];
 	}
 
@@ -1802,22 +1539,155 @@ VisualScriptFunctionCall::TypeGuess VisualScriptOpenCVFunctionCall::guess_output
 VisualScriptOpenCVFunctionCall::VisualScriptOpenCVFunctionCall() {
 
 	validate = true;
-	call_mode = CALL_MODE_INSTANCE;
 	basic_type = Variant::NIL;
 	use_default_args = 0;
 	base_type = "OpenCVServer";
 	rpc_call_mode = RPC_DISABLED;
 }
 
-template <VisualScriptOpenCVFunctionCall::CallMode cmode>
-static Ref<VisualScriptNode> create_function_call_node(const String &p_name) {
+template <VisualScriptFunctionCall::CallMode cmode>
+static Ref<VisualScriptNode> create_opencv_function_call_node(const String &p_name) {
 
 	Ref<VisualScriptOpenCVFunctionCall> node;
 	node.instance();
-	node->set_call_mode(cmode);
 	return node;
 }
 
+//////////////////////////////////////////
+////////////////OPENCV_OUTPUT//////////////////////
+//////////////////////////////////////////
+
+int VisualScriptOpenCVOutputTexture::get_input_value_port_count() const {
+	return 2; // OpenCVServer Object, Image Data Array, Object that has texture(TextureRect) 
+}
+
+int VisualScriptOpenCVOutputTexture::get_output_sequence_port_count() const {
+	return 1;
+}
+
+int VisualScriptOpenCVOutputTexture::get_output_value_port_count() const {
+	return 1;
+}
+
+bool VisualScriptOpenCVOutputTexture::has_input_sequence_port() const {
+	return true;
+}
+
+String VisualScriptOpenCVOutputTexture::get_output_sequence_port_text(int p_port) const {
+	return String();
+}
+
+PropertyInfo VisualScriptOpenCVOutputTexture::get_output_value_port_info(int p_idx) const {
+	PropertyInfo pi;
+	pi.name = String("pass");
+	pi.type = Variant::OBJECT;
+	return pi;
+}
+
+PropertyInfo VisualScriptOpenCVOutputTexture::get_input_value_port_info(int p_idx) const {	
+	if (p_idx == 0) {
+		PropertyInfo pi;
+		pi.name = String("OpenCVServer");
+		pi.type = Variant::OBJECT;
+		return pi;
+	} else {
+		PropertyInfo pi;
+		pi.name = String("TextureRect");
+		pi.type = Variant::OBJECT;
+		return pi;
+	}
+}
+
+String VisualScriptOpenCVOutputTexture::get_caption() const {
+	return String("OpenCV Output");
+}
+
+String VisualScriptOpenCVOutputTexture::get_text() const {
+	return String("");
+}
+
+void VisualScriptOpenCVFunctionCall::set_validate(bool val) {
+	validate = val;
+}
+
+bool VisualScriptOpenCVFunctionCall::get_validate() const {
+	return validate;
+}
+
+void VisualScriptOpenCVFunctionCall::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVFunctionCall::set_validate);
+	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVFunctionCall::get_validate);
+
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "validate"), "set_validate", "get_validate");
+
+}
+
+class VisualScriptNodeInstanceOpenCVOutputTexture : public VisualScriptNodeInstance {
+public:
+	bool validate;
+	int returns;
+	int input_args;
+
+	VisualScriptOpenCVOutputTexture *node;
+	VisualScriptInstance *instance;
+
+	//virtual int get_working_memory_size() const { return 0; }
+	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
+	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
+
+	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+
+		Variant v = *p_inputs[0];
+
+		// get Image Data
+		Variant dt = v.call(StringName("get_image_data"), NULL, 0, r_error);
+		PoolByteArray *img_data = Object::cast_to<PoolByteArray>(dt);
+
+		//  things to do here
+		
+		// 1. create a new Image from Image data
+		Image* img = Object::cast_to<Image>(ClassDB::instance("Image"));
+		Vector2 vec = v.call(StringName("get_image_size"), NULL, 0, r_error);
+		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, *img_data);
+		
+		// 2. create ImageTexture from that Image
+		ImageTexture* image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
+		image_tex->create_from_image(img);
+		
+		// load that image texture into a TextureRect
+		Variant texr = *p_inputs[1];
+		// Ok had to hack a lot of things today
+		Variant *inp = Object::cast_to<Variant>(image_tex);
+		const Variant **input_r = &inp;
+		auto test = texr.call(StringName("set_texture"), input_r, 1, r_error);  // hopefully this works
+
+		*p_outputs[0] = *p_inputs[0];
+
+		if (!validate) {
+			//ignore call errors if validation is disabled
+			r_error.error = Variant::CallError::CALL_OK;
+			r_error_str = String();
+		}
+
+		return 0;
+	}
+};
+
+VisualScriptNodeInstance *VisualScriptOpenCVOutputTexture::instance(VisualScriptInstance *p_instance) {
+
+	VisualScriptNodeInstanceOpenCVOutputTexture *instance = memnew(VisualScriptNodeInstanceOpenCVOutputTexture);
+	instance->node = this;
+	instance->instance = p_instance;
+	instance->returns = get_output_value_port_count();
+	instance->input_args = get_input_value_port_count() - 1;
+	instance->validate = validate;
+	return instance;
+}
+VisualScriptOpenCVOutputTexture::VisualScriptOpenCVOutputTexture() {
+	validate = false;
+}
 //////////////////////////////////////////
 ////////////////SET//////////////////////
 //////////////////////////////////////////
@@ -3370,6 +3240,7 @@ void register_visual_script_func_nodes() {
 
 	VisualScriptLanguage::singleton->add_register_func("functions/call", create_node_generic<VisualScriptFunctionCall>);
 	VisualScriptLanguage::singleton->add_register_func("functions/opencv_call", create_node_generic<VisualScriptOpenCVFunctionCall>);
+	VisualScriptLanguage::singleton->add_register_func("functions/opencv_output", create_node_generic<VisualScriptOpenCVOutputTexture>);
 	VisualScriptLanguage::singleton->add_register_func("functions/set", create_node_generic<VisualScriptPropertySet>);
 	VisualScriptLanguage::singleton->add_register_func("functions/get", create_node_generic<VisualScriptPropertyGet>);
 
