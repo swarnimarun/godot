@@ -28,13 +28,13 @@ private:
     int height;
     int width;
 
-    static Thread *thread;
-    static int task;
-    static int a;
+    //static Thread *thread;
+    //static int task;
+    //static int a;
 
     Array *image_data;
     
-    static void do_something(void *data);
+    //static void do_something(void *data);
 
 public:
     int error_flag; // this flag is there to give more details about the failure of a process [0 = working fine]

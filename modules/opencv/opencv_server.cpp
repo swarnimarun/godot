@@ -64,11 +64,11 @@ Array OpenCVServer::get_image_data() {
     return arr;
 }
 
-void OpenCVServer::do_something(void *data) {
+// void OpenCVServer::do_something(void *data) {
 
     
 
-}
+// }
 
 Vector2 OpenCVServer::get_image_size() {
     return Vector2(width, height);
