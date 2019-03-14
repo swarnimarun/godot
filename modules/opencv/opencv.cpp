@@ -26,7 +26,9 @@ Array OpenCV::get_image(bool get_processed_image) {
     cv::Mat rgbFrame(width, height, CV_8UC3);
     
     // Be sure that we are dealing with RGB colorspace...
-    if (!get_processed_image && !image.empty()) {
+    if (get_processed_image && !dst.empty()) {
+        cv::cvtColor(dst, rgbFrame, CV_BGR2RGB);
+    } else if (!get_processed_image && !image.empty()) {
         cv::cvtColor(image, rgbFrame, CV_BGR2RGB);
     } else if (get_processed_image && !processed_image.empty()) {
         cv::cvtColor(processed_image, rgbFrame, CV_GRAY2RGB);
@@ -74,6 +76,28 @@ int OpenCV::get_threshold_value() const {
     return threshold_value;
 }
 
+void OpenCV::set_image_size(Vector2 _value) {
+
+}
+
+Vector2 OpenCV::get_image_size() const {
+    return Vector2(width, height);
+}
+
+void OpenCV::canny_edge() {
+    // /// Reduce noise with a kernel 3x3
+    // cv::blur( bw_image, detected_edges, cv::Size(3,3) );
+
+    // /// Canny detector
+    // cv::Canny( detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size );
+    dst.create(image.size(), image.type());
+    cv::blur( bw_image, detected_edges, cv::Size(3,3) );
+    cv::Canny( detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size );
+    dst = cv::Scalar::all(0);
+    image.copyTo( dst, detected_edges);
+
+}
+
 void OpenCV::_bind_methods() {
     ClassDB::bind_method(D_METHOD("load_image"), &OpenCV::load_image);
 
@@ -85,8 +109,11 @@ void OpenCV::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_threshold_value", "threshold"), &OpenCV::set_threshold_value);
     ClassDB::bind_method(D_METHOD("get_threshold_value"), &OpenCV::get_threshold_value);
 
+    ClassDB::bind_method(D_METHOD("canny_edge"), &OpenCV::canny_edge);
+
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "path_to_image"), "set_path_to_image", "get_path_to_image");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "size"), "set_image_size", "get_image_size");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "threshold_value"), "set_threshold_value", "get_threshold_value");
 }
 
