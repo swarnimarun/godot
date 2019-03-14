@@ -14,6 +14,7 @@ bool OpenCV::load_image() {
     image = cv::imread( path, cv::IMREAD_UNCHANGED);
 
     cv::cvtColor(image, bw_image, cv::COLOR_BGR2GRAY);
+    dst.create(image.size(), image.type());
 
     height = image.rows;   
     width = image.cols;   
@@ -77,7 +78,7 @@ int OpenCV::get_threshold_value() const {
 }
 
 void OpenCV::set_image_size(Vector2 _value) {
-
+    // do nothing
 }
 
 Vector2 OpenCV::get_image_size() const {
@@ -90,7 +91,6 @@ void OpenCV::canny_edge() {
 
     // /// Canny detector
     // cv::Canny( detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size );
-    dst.create(image.size(), image.type());
     cv::blur( bw_image, detected_edges, cv::Size(3,3) );
     cv::Canny( detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size );
     dst = cv::Scalar::all(0);
@@ -105,6 +105,9 @@ void OpenCV::_bind_methods() {
 
     ClassDB::bind_method(D_METHOD("set_path_to_image", "name"), &OpenCV::set_path_to_image);
     ClassDB::bind_method(D_METHOD("get_path_to_image"), &OpenCV::get_path_to_image);
+
+    ClassDB::bind_method(D_METHOD("set_image_size", "size"), &OpenCV::set_image_size);
+    ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCV::get_image_size);
 
     ClassDB::bind_method(D_METHOD("set_threshold_value", "threshold"), &OpenCV::set_threshold_value);
     ClassDB::bind_method(D_METHOD("get_threshold_value"), &OpenCV::get_threshold_value);
