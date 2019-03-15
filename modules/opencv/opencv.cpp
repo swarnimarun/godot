@@ -77,10 +77,6 @@ int OpenCV::get_threshold_value() const {
     return threshold_value;
 }
 
-void OpenCV::set_image_size(Vector2 _value) {
-    // do nothing
-}
-
 Vector2 OpenCV::get_image_size() const {
     return Vector2(width, height);
 }
@@ -106,7 +102,7 @@ void OpenCV::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_path_to_image", "name"), &OpenCV::set_path_to_image);
     ClassDB::bind_method(D_METHOD("get_path_to_image"), &OpenCV::get_path_to_image);
 
-    ClassDB::bind_method(D_METHOD("set_image_size", "size"), &OpenCV::set_image_size);
+    // ClassDB::bind_method(D_METHOD("set_image_size", "size"), &OpenCV::set_image_size);
     ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCV::get_image_size);
 
     ClassDB::bind_method(D_METHOD("set_threshold_value", "threshold"), &OpenCV::set_threshold_value);
@@ -116,7 +112,7 @@ void OpenCV::_bind_methods() {
 
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "path_to_image"), "set_path_to_image", "get_path_to_image");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "size"), "set_image_size", "get_image_size");
+	// ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "size"), "set_image_size", "get_image_size");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "threshold_value"), "set_threshold_value", "get_threshold_value");
 }
 
@@ -131,6 +127,10 @@ OpenCV::~OpenCV() {
     // although this is probably redundant with the C++ API of OpenCV
     if (!image.empty())
         image.release();
+    if (!dst.empty())
+        dst.release();
+    if (!detected_edges.empty())
+        detected_edges.release();
     if (!processed_image.empty())
         processed_image.release();
     print_line("destructor");

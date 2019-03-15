@@ -42,7 +42,7 @@ public:
     int threshold_value;
 
     int edgeThresh = 1;
-    int lowThreshold;
+    int lowThreshold = 10;
     int const max_lowThreshold = 100;
     int ratio = 3;
     int kernel_size = 3;
@@ -60,7 +60,6 @@ public:
     void set_path_to_image(String _path);
     String get_path_to_image() const;
 
-    void set_image_size(Vector2 _value);
     Vector2 get_image_size() const;
 
     void canny_edge();
