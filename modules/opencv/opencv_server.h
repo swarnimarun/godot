@@ -11,6 +11,9 @@
 // everything else will help use this
 // this will allow for best performance with most options
 
+// IMP!
+    // NEED TO MAKE IT THREADED
+    // NEED TO ADD MORE FUNCTIONS FOR TESTING
 
 class OpenCVServer : public Object {
     GDCLASS(OpenCVServer, Object)
