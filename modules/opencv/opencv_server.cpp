@@ -1,8 +1,14 @@
-#include "opencv_server.hpp"
+#include "opencv_server.h"
 
+// moving header files here as I just found that it's better to not have
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgcodecs.hpp"
+
+OpenCVServer* OpenCVServer::singleton = NULL;
 
 OpenCVServer::OpenCVServer() {
-
+    singleton = this;
 }
 
 OpenCVServer::~OpenCVServer() {
@@ -12,6 +18,8 @@ OpenCVServer::~OpenCVServer() {
         dest.release();
     if (!bw_img.empty())
         bw_img.release();
+
+    singleton = NULL;
 }
 
 bool OpenCVServer::threshold(int val, int max_val, int type) {
@@ -19,11 +27,12 @@ bool OpenCVServer::threshold(int val, int max_val, int type) {
         return false;
     cv::threshold(bw_img, dest, val, max_val, type);
     dest_type = CV_BGR2RGB;
+    emit_signal("value_update");
     return true;
 }
 
-bool OpenCVServer::load_source(OpenCVImage image) {
-    cv::String path(image.get_address(false).utf8().get_data());
+bool OpenCVServer::load_source(String image) {
+    cv::String path(image.utf8().get_data());
     source = cv::imread(path, cv::IMREAD_UNCHANGED);
     source_type = CV_BGR2RGB;
 
@@ -63,8 +72,15 @@ Array OpenCVServer::get_image() {
     return arr;
 }
 
+Vector2 OpenCVServer::get_image_size() {
+    return Vector2(width, height);
+}
+
 void OpenCVServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("threshold", "value", "max_value", "type"), &OpenCVServer::threshold, DEFVAL(50), DEFVAL(100), DEFVAL(1));
     ClassDB::bind_method(D_METHOD("get_image"), &OpenCVServer::get_image);
-    ClassDB::bind_method(D_METHOD("load_source", "source_image"), &OpenCVServer::load_source);
+    ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
+    ClassDB::bind_method(D_METHOD("load_source", "source_image_path"), &OpenCVServer::load_source);
+
+    ADD_SIGNAL(MethodInfo("value_update"));
 }

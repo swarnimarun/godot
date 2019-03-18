@@ -5,6 +5,8 @@ env.add_source_files(env.modules_sources,"*.cpp")
 
 # doing dynamic linking cause it's easier to get started... :(
 
+env.Append(ENV={'LIBRARY_PATH': "/usr/local/lib64/"})
+
 # add the flags
 env.Append(CPPFLAGS=["-lopencv_core"])
 env.Append(CPPFLAGS=["-lopencv_imgproc"])

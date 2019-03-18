@@ -71,6 +71,7 @@ String OpenCV::get_path_to_image() const {
 void OpenCV::set_threshold_value(int _val) {
     threshold_value = _val;
     cv::threshold(bw_image, processed_image, threshold_value, 100, 1);
+    emit_signal("value_update");
 }
 
 int OpenCV::get_threshold_value() const {
@@ -114,6 +115,9 @@ void OpenCV::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "path_to_image"), "set_path_to_image", "get_path_to_image");
 	// ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "size"), "set_image_size", "get_image_size");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "threshold_value"), "set_threshold_value", "get_threshold_value");
+
+
+    ADD_SIGNAL(MethodInfo("value_update"));
 }
 
 OpenCV::OpenCV() {

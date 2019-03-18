@@ -3,11 +3,6 @@
 #define OPENCV_SERVER_H
 
 #include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgcodecs.hpp"
-
-#include "core/object.h"
 
 #include "opencv_image.hpp"
 
@@ -20,8 +15,12 @@
 class OpenCVServer : public Object {
     GDCLASS(OpenCVServer, Object)
 
+    static OpenCVServer* singleton;
+
+protected:
+	static void _bind_methods(); // bind the public methods to the class db
+
 private:
-    
     // source image
     cv::Mat source;
     int source_type;
@@ -37,6 +36,7 @@ private:
     int width;
 
 public:
+    static OpenCVServer* get_singleton();
 
     int error_flag; // this flag is there to give more details about the failure of a process [0 = working fine]
     // this won't have any use right now hopefully I will implement it some day.. :)
@@ -58,8 +58,10 @@ public:
     bool set_zeros();
     // -- ed --
 
+    Vector2 get_image_size();
+
     // load_source - this will take a new image as source and clear the destination image
-    bool load_source(OpenCVImage image);
+    bool load_source(String image);
 
     // make_source - this function will make the final image the source image
 
@@ -68,9 +70,6 @@ public:
     
     // get_image - to get the image from dest
     Array get_image();
-
-protected:
-	static void _bind_methods(); // bind the public methods to the class db
 public:
     OpenCVServer();
     ~OpenCVServer();

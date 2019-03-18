@@ -3,7 +3,6 @@
 #define OPENCV_IMAGE_H
 
 #include "core/resource.h"
-#include "core/project_settings.h"
 
 // this is just a plain data holder to 
 
@@ -20,7 +19,7 @@ public:
     bool isEqual(OpenCVImage image) const; // check if the image resource is a duplicate
     bool isEqualString(String image_path, bool is_absolute) const; // check if the path is equal
 
-    void set_image(String path, bool relative);
+    void set_image(bool relative, String path);
 
     String get_address(bool relative) const; // this will give the absolute path by default 
 
