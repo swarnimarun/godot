@@ -9,7 +9,7 @@ void register_opencv_types() {
 }
 
 void register_opencv_singletons() {
-	Engine::get_singleton()->add_singleton(Engine::Singleton("OpenCVServer", OpenCVServer::get_singleton()));
+
 }
 
 void unregister_opencv_types() {

@@ -3,8 +3,10 @@
 #define OPENCV_SERVER_H
 
 #include "opencv2/core.hpp"
-
-#include "opencv_image.hpp"
+// #include "core/image.h"
+// #include "scene/resources/texture.h"
+// #include "opencv_image.hpp"
+#include "core/object.h"
 
 
 // this will be a centralized structure where all the things will be called and all the ops will be performed at
@@ -17,8 +19,6 @@
 
 class OpenCVServer : public Object {
     GDCLASS(OpenCVServer, Object)
-
-    static OpenCVServer* singleton;
 
 protected:
 	static void _bind_methods(); // bind the public methods to the class db
@@ -39,8 +39,6 @@ private:
     int width;
 
 public:
-    static OpenCVServer* get_singleton();
-
     int error_flag; // this flag is there to give more details about the failure of a process [0 = working fine]
     // this won't have any use right now hopefully I will implement it some day.. :)
 
@@ -72,7 +70,9 @@ public:
     Array get_source();
     
     // get_image - to get the image from dest
-    Array get_image();
+    // Ref<Image> get_image();
+    Array get_image_data();
+    
 public:
     OpenCVServer();
     ~OpenCVServer();
