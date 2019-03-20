@@ -133,6 +133,9 @@ public:
 };
 
 
+VARIANT_ENUM_CAST(VisualScriptFunctionCall::CallMode);
+VARIANT_ENUM_CAST(VisualScriptFunctionCall::RPCCallMode);
+
 // /// OPENCV
 
 class VisualScriptOpenCVFunctionCall : public VisualScriptNode {
@@ -234,8 +237,8 @@ public:
 	VisualScriptOpenCVFunctionCall();
 };
 
-VARIANT_ENUM_CAST(VisualScriptFunctionCall::CallMode);
-VARIANT_ENUM_CAST(VisualScriptFunctionCall::RPCCallMode);
+VARIANT_ENUM_CAST(VisualScriptOpenCVFunctionCall::CallMode);
+VARIANT_ENUM_CAST(VisualScriptOpenCVFunctionCall::RPCCallMode);
 
 class VisualScriptPropertySet : public VisualScriptNode {
 

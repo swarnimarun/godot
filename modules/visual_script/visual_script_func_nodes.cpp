@@ -957,28 +957,7 @@ bool VisualScriptOpenCVFunctionCall::has_input_sequence_port() const {
 	else
 		return true;
 }
-#ifdef TOOLS_ENABLED
 
-static Node *_find_script_node(Node *p_edited_scene, Node *p_current_node, const Ref<Script> &script) {
-
-	if (p_edited_scene != p_current_node && p_current_node->get_owner() != p_edited_scene)
-		return NULL;
-
-	Ref<Script> scr = p_current_node->get_script();
-
-	if (scr.is_valid() && scr == script)
-		return p_current_node;
-
-	for (int i = 0; i < p_current_node->get_child_count(); i++) {
-		Node *n = _find_script_node(p_edited_scene, p_current_node->get_child(i), script);
-		if (n)
-			return n;
-	}
-
-	return NULL;
-}
-
-#endif
 Node *VisualScriptOpenCVFunctionCall::_get_base_node() const {
 
 #ifdef TOOLS_ENABLED
@@ -1675,14 +1654,14 @@ public:
 		int to_id = 0;
 		bool reliable = true;
 
-		if (rpc_mode >= VisualScriptFunctionCall::RPC_RELIABLE_TO_ID) {
+		if (rpc_mode >= VisualScriptOpenCVFunctionCall::RPC_RELIABLE_TO_ID) {
 			to_id = *p_args[0];
 			p_args += 1;
 			p_argcount -= 1;
-			if (rpc_mode == VisualScriptFunctionCall::RPC_UNRELIABLE_TO_ID) {
+			if (rpc_mode == VisualScriptOpenCVFunctionCall::RPC_UNRELIABLE_TO_ID) {
 				reliable = false;
 			}
-		} else if (rpc_mode == VisualScriptFunctionCall::RPC_UNRELIABLE) {
+		} else if (rpc_mode == VisualScriptOpenCVFunctionCall::RPC_UNRELIABLE) {
 			reliable = false;
 		}
 
@@ -1743,7 +1722,7 @@ public:
 						call_rpc(obj, p_inputs + 1, input_args - 1);
 					}
 				} else if (returns) {
-					if (call_mode == VisualScriptFunctionCall::CALL_MODE_INSTANCE) {
+					if (call_mode == VisualScriptOpenCVFunctionCall::CALL_MODE_INSTANCE) {
 						if (returns >= 2) {
 							*p_outputs[1] = v.call(function, p_inputs + 1, input_args, r_error);
 						} else if (returns == 1) {
@@ -1760,7 +1739,7 @@ public:
 					v.call(function, p_inputs + 1, input_args, r_error);
 				}
 
-				if (call_mode == VisualScriptFunctionCall::CALL_MODE_INSTANCE) {
+				if (call_mode == VisualScriptOpenCVFunctionCall::CALL_MODE_INSTANCE) {
 					*p_outputs[0] = *p_inputs[0];
 				}
 
