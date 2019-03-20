@@ -68,11 +68,7 @@ void register_visual_script_types() {
 	ClassDB::register_class<VisualScriptBasicTypeConstant>();
 	ClassDB::register_class<VisualScriptEngineSingleton>();
 	
-	
-	
 	ClassDB::register_class<VisualScriptOpenCV>();
-	
-	
 	
 	ClassDB::register_class<VisualScriptSceneNode>();
 	ClassDB::register_class<VisualScriptSceneTree>();
@@ -90,6 +86,7 @@ void register_visual_script_types() {
 	ClassDB::register_class<VisualScriptTypeCast>();
 
 	ClassDB::register_class<VisualScriptFunctionCall>();
+	ClassDB::register_class<VisualScriptOpenCVFunctionCall>();
 	ClassDB::register_class<VisualScriptPropertySet>();
 	ClassDB::register_class<VisualScriptPropertyGet>();
 	//ClassDB::register_type<VisualScriptScriptCall>();
