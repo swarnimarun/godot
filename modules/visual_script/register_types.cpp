@@ -69,6 +69,7 @@ void register_visual_script_types() {
 	ClassDB::register_class<VisualScriptEngineSingleton>();
 	
 	ClassDB::register_class<VisualScriptOpenCV>();
+	ClassDB::register_class<VisualScriptOpenCVImage>();
 	
 	ClassDB::register_class<VisualScriptSceneNode>();
 	ClassDB::register_class<VisualScriptSceneTree>();

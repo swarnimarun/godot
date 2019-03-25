@@ -452,6 +452,36 @@ public:
 	VisualScriptOpenCV();
 };
 
+// Add a Image from Resource
+class VisualScriptOpenCVImage : public VisualScriptNode {
+
+	GDCLASS(VisualScriptOpenCVImage, VisualScriptNode)
+
+	static void _bind_methods();
+	// virtual void _validate_property(PropertyInfo &property) const;
+
+public:
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual int get_input_value_port_count() const;
+	virtual int get_output_value_port_count() const;
+
+	virtual PropertyInfo get_input_value_port_info(int p_idx) const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
+
+	virtual String get_caption() const;
+	virtual String get_category() const { return "data"; }
+
+	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
+	// virtual TypeGuess guess_output_type(TypeGuess *p_inputs, int p_output) const;
+
+	VisualScriptOpenCVImage();
+};
+
+
 class VisualScriptBasicTypeConstant : public VisualScriptNode {
 
 	GDCLASS(VisualScriptBasicTypeConstant, VisualScriptNode)

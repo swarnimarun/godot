@@ -1669,6 +1669,83 @@ VisualScriptOpenCV::VisualScriptOpenCV() {
 
 
 //////////////////////////////////////////
+////////////////OPENCV///////////
+//////////////////////////////////////////
+
+
+int VisualScriptOpenCVImage::get_output_sequence_port_count() const {
+
+	return 0;
+}
+
+bool VisualScriptOpenCVImage::has_input_sequence_port() const {
+
+	return false;
+}
+
+int VisualScriptOpenCVImage::get_input_value_port_count() const {
+
+	return 1;
+}
+int VisualScriptOpenCVImage::get_output_value_port_count() const {
+
+	return 1;
+}
+
+String VisualScriptOpenCVImage::get_output_sequence_port_text(int p_port) const {
+
+	return String();
+}
+
+PropertyInfo VisualScriptOpenCVImage::get_input_value_port_info(int p_idx) const {
+
+	return PropertyInfo(Variant::OBJECT, "ImageResource");
+}
+
+PropertyInfo VisualScriptOpenCVImage::get_output_value_port_info(int p_idx) const {
+
+	return PropertyInfo(Variant::STRING, "ImagePath");
+}
+
+String VisualScriptOpenCVImage::get_caption() const {
+
+	return "Get Image Path";
+}
+
+class VisualScriptNodeInstanceOpenCVImage : public VisualScriptNodeInstance {
+public:
+
+	//virtual int get_working_memory_size() const { return 0; }
+
+	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+
+		Variant v = *p_inputs[0];
+		*p_outputs[0] = ProjectSettings::get_singleton()->globalize_path(v.call("get_path", NULL, 0, r_error));
+
+		return 0;
+	}
+};
+
+VisualScriptNodeInstance *VisualScriptOpenCVImage::instance(VisualScriptInstance *p_instance) {
+
+	VisualScriptNodeInstanceOpenCVImage *instance = memnew(VisualScriptNodeInstanceOpenCVImage);
+	return instance;
+}
+
+// void VisualScriptOpenCV::_validate_property(PropertyInfo &property) const {
+
+// }
+
+void VisualScriptOpenCVImage::_bind_methods() {
+
+}
+
+VisualScriptOpenCVImage::VisualScriptOpenCVImage() {
+
+}
+
+
+//////////////////////////////////////////
 ////////////////BASICTYPECONSTANT///////////
 //////////////////////////////////////////
 
@@ -3724,6 +3801,7 @@ void register_visual_script_nodes() {
 	VisualScriptLanguage::singleton->add_register_func("data/get_variable", create_node_generic<VisualScriptVariableGet>);
 	VisualScriptLanguage::singleton->add_register_func("data/engine_singleton", create_node_generic<VisualScriptEngineSingleton>);
 	VisualScriptLanguage::singleton->add_register_func("data/opencv_server", create_node_generic<VisualScriptOpenCV>);
+	VisualScriptLanguage::singleton->add_register_func("data/get_imageres_path", create_node_generic<VisualScriptOpenCVImage>);
 	VisualScriptLanguage::singleton->add_register_func("data/scene_node", create_node_generic<VisualScriptSceneNode>);
 	VisualScriptLanguage::singleton->add_register_func("data/scene_tree", create_node_generic<VisualScriptSceneTree>);
 	VisualScriptLanguage::singleton->add_register_func("data/resource_path", create_node_generic<VisualScriptResourcePath>);
