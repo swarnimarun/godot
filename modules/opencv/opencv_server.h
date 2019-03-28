@@ -30,13 +30,20 @@ private:
     int height;
     int width;
 
-    //static Thread *thread;
-    //static int task;
-    //static int a;
+    int task;
     
-    //static void do_something(void *data);
+    PoolVector<u_char> image_data;
+
+    bool kill;
+    bool process;
+    
+    Thread *thread;
 
 public:
+    
+    
+    static void do_something(void *data);
+
     int error_flag; // this flag is there to give more details about the failure of a process [0 = working fine]
     // this won't have any use right now hopefully I will implement it some day.. :)
 
@@ -63,6 +70,10 @@ public:
     bool load_source_from_path(String image);
     bool load_source(String image);
 
+    void process_image();
+    void kill_me();
+
+    void process_image_data();
     // make_source - this function will make the final image the source image
 
     // get_source - to get the image from source

@@ -6,9 +6,11 @@
 #include "opencv2/imgcodecs.hpp"
 
 #include "core/variant.h"
+#include "core/os/thread.h"
 
 OpenCVServer::OpenCVServer() {
-    //thread = Thread::create(do_something, this);
+    thread = Thread::create(do_something, this);
+    kill = false;
 }
 
 OpenCVServer::~OpenCVServer() {
@@ -18,6 +20,8 @@ OpenCVServer::~OpenCVServer() {
         dest.release();
     if (!bw_img.empty())
         bw_img.release();
+
+    kill = true;    
 }
 
 bool OpenCVServer::threshold(int val, int max_val, int type) {
@@ -44,16 +48,21 @@ bool OpenCVServer::load_source_from_path(String image) {
     height = source.rows;   
     width = source.cols;   
 
-    //image_data->resize(height*width*3);
+    process = true;
 
     return true;
 }
 
 PoolByteArray OpenCVServer::get_image_data() {       
     
+    return image_data;
+}
+
+void OpenCVServer::process_image_data() {
+
     cv::Mat rgbFrame(width, height, CV_8UC3);
     cv::cvtColor(dest, rgbFrame, dest_type);
-   
+
     Array arr;
     arr.resize(height*width*3);
 
@@ -64,14 +73,18 @@ PoolByteArray OpenCVServer::get_image_data() {
 
     Variant v = arr;
 
-    return PoolVector<u_int8_t>(v);
+    image_data = PoolVector<u_int8_t>(v);
+
 }
 
 Ref<ImageTexture> OpenCVServer::get_image_texture() {
 
+    if (image_data.size <= 0) 
+        return ;
+
     // 1. create a new Image from Image data
     Ref<Image> img = Object::cast_to<Image>(ClassDB::instance("Image"));
-    img->create(width, height, false, Image::FORMAT_RGB8, get_image_data());         ///// THIS WORKS
+    img->create(width, height, false, Image::FORMAT_RGB8, image_data);         ///// THIS WORKS
     
     // 2. create ImageTexture from that Image
     Ref<ImageTexture> image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
@@ -79,11 +92,32 @@ Ref<ImageTexture> OpenCVServer::get_image_texture() {
     return image_tex; 
 }
 
-// void OpenCVServer::do_something(void *data) {
+void OpenCVServer::process_image() {
+    process = true;
+}
 
-    
 
-// }
+void OpenCVServer::kill_me() {
+    kill = true;
+}
+
+void OpenCVServer::do_something(void *data) {
+
+    OpenCVServer *sev = (OpenCVServer *)data;
+
+
+    while (true) {
+        if (sev->process) {
+            sev->process_image_data();
+            sev->process = false;
+        }
+
+        if (sev->kill)
+            break;        
+    }
+
+    return;
+}
 
 Vector2 OpenCVServer::get_image_size() {
     return Vector2(width, height);
@@ -94,6 +128,8 @@ void OpenCVServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_image_data"), &OpenCVServer::get_image_data);
     ClassDB::bind_method(D_METHOD("get_image_texture"), &OpenCVServer::get_image_texture);
     ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
+    ClassDB::bind_method(D_METHOD("process_image"), &OpenCVServer::process_image);
+    ClassDB::bind_method(D_METHOD("kill_thread"), &OpenCVServer::kill_me);
     ClassDB::bind_method(D_METHOD("load_source_from_path", "source_image_path"), &OpenCVServer::load_source_from_path);
 
     ADD_SIGNAL(MethodInfo("value_update"));
