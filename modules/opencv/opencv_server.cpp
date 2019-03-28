@@ -13,6 +13,7 @@
 OpenCVServer::OpenCVServer() {
     thread = Thread::create(do_something, this);
     kill = false;
+    changed = false;
 }
 
 OpenCVServer::~OpenCVServer() {
@@ -33,7 +34,8 @@ bool OpenCVServer::threshold(int val, int max_val, int type) {
     dest_type = CV_BGR2RGB;
 
     emit_signal("value_update");    
-    
+    process = true;
+
     return true;
 }
 
@@ -50,8 +52,6 @@ bool OpenCVServer::load_source_from_path(String image) {
     height = source.rows;   
     width = source.cols;   
 
-    process = true;
-
     return true;
 }
 bool OpenCVServer::load_source_image(Image image) {
@@ -67,13 +67,11 @@ bool OpenCVServer::load_source_image(Image image) {
     height = source.rows;   
     width = source.cols;   
 
-    process = true;
-
     return true;
 }
 
 PoolByteArray OpenCVServer::get_image_data() {       
-    
+
     return image_data;
 }
 
@@ -93,7 +91,7 @@ void OpenCVServer::process_image_data() {
     Variant v = arr;
 
     image_data = PoolVector<u_int8_t>(v);
-
+    emit_signal("processed_image");
 }
 
 Ref<ImageTexture> OpenCVServer::get_image_texture() {
@@ -127,8 +125,8 @@ void OpenCVServer::do_something(void *data) {
 
     while (true) {
         if (sev->process) {
+            sev->process = false;  // this needs to be before so that we don't have any changes during processing which might get overriden.
             sev->process_image_data();
-            sev->process = false;
         }
 
         if (sev->kill)
@@ -153,4 +151,5 @@ void OpenCVServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("load_source_image", "source_image"), &OpenCVServer::load_source_image);
 
     ADD_SIGNAL(MethodInfo("value_update"));
+    ADD_SIGNAL(MethodInfo("processed_image"));
 }

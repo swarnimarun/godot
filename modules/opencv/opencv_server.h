@@ -37,6 +37,8 @@ private:
     bool kill;
     bool process;
     
+    bool changed;
+
     Thread *thread;
 
 public:
