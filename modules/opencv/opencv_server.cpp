@@ -5,6 +5,8 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgcodecs.hpp"
 
+#include "core/project_settings.h"
+
 #include "core/variant.h"
 #include "core/os/thread.h"
 
@@ -37,6 +39,23 @@ bool OpenCVServer::threshold(int val, int max_val, int type) {
 
 bool OpenCVServer::load_source_from_path(String image) {
     cv::String path(image.utf8().get_data());
+    source = cv::imread(path, cv::IMREAD_UNCHANGED);
+    source_type = CV_BGR2RGB;
+
+    if (source.empty())
+        return false;
+
+    cv::cvtColor(source, bw_img, cv::COLOR_BGR2RGB);
+
+    height = source.rows;   
+    width = source.cols;   
+
+    process = true;
+
+    return true;
+}
+bool OpenCVServer::load_source_image(Image image) {
+    cv::String path(ProjectSettings::get_singleton()->globalize_path(image.get_path()).utf8().get_data());
     source = cv::imread(path, cv::IMREAD_UNCHANGED);
     source_type = CV_BGR2RGB;
 
@@ -129,8 +148,9 @@ void OpenCVServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_image_texture"), &OpenCVServer::get_image_texture);
     ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
     ClassDB::bind_method(D_METHOD("process_image"), &OpenCVServer::process_image);
-    ClassDB::bind_method(D_METHOD("kill_thread"), &OpenCVServer::kill_me);
+    //ClassDB::bind_method(D_METHOD("kill_thread"), &OpenCVServer::kill_me);
     ClassDB::bind_method(D_METHOD("load_source_from_path", "source_image_path"), &OpenCVServer::load_source_from_path);
+    ClassDB::bind_method(D_METHOD("load_source_image", "source_image"), &OpenCVServer::load_source_image);
 
     ADD_SIGNAL(MethodInfo("value_update"));
 }

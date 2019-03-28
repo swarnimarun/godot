@@ -68,7 +68,7 @@ public:
 
     // load_source - this will take a new image as source and clear the destination image
     bool load_source_from_path(String image);
-    bool load_source(String image);
+    bool load_source_image(Image image);
 
     void process_image();
     void kill_me();
