@@ -7,6 +7,8 @@
 #include "core/object.h"
 #include "core/os/thread.h"
 
+#include "scene/resources/texture.h"
+
 class OpenCVServer : public Object {
     GDCLASS(OpenCVServer, Object)
 
@@ -31,8 +33,6 @@ private:
     //static Thread *thread;
     //static int task;
     //static int a;
-
-    Array *image_data;
     
     //static void do_something(void *data);
 
@@ -68,8 +68,9 @@ public:
     // get_source - to get the image from source
     Array get_source();
     
-    Array get_image_data();
-    
+    PoolByteArray get_image_data();
+    Ref<ImageTexture> get_image_texture();
+    void cleanup();
 
 public:
     OpenCVServer();
