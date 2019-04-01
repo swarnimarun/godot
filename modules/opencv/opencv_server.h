@@ -9,6 +9,29 @@
 
 #include "scene/resources/texture.h"
 
+
+// Quick wrapper for Signals as object 
+class OpenCVProcess : public Reference {
+	GDCLASS(OpenCVProcess, Reference);
+
+    int process_id;
+    bool paused;
+
+protected:
+	static void _bind_methods();
+
+public:
+	void set_process(int p_id);
+	float get_process() const;
+
+    void finished();
+
+	void set_pause_mode_process(bool p_pause_mode_process);
+	bool is_pause_mode_process();
+
+	OpenCVProcess();
+};
+
 class OpenCVServer : public Object {
     GDCLASS(OpenCVServer, Object)
 
@@ -38,11 +61,18 @@ private:
     bool process;
     
     bool changed;
+	
+
 
     Thread *thread;
 
 public:
+
+
+    // My simple fun
+    List<Ref<OpenCVProcess>> processes;
     
+    Ref<OpenCVProcess> create_process(int process_id); // ability to create wrap and offload the process
     
     static void do_something(void *data);
 

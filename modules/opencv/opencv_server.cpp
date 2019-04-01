@@ -10,6 +10,19 @@
 #include "core/variant.h"
 #include "core/os/thread.h"
 
+
+OpenCVProcess::OpenCVProcess() {
+    // create a process point
+}
+
+void OpenCVProcess::finished() {
+    emit_signal("finished");
+}
+
+void OpenCVProcess::_bind_methods() {
+    ADD_SIGNAL(MethodInfo("finished"));
+}
+
 OpenCVServer::OpenCVServer() {
     thread = Thread::create(do_something, this);
     kill = false;
@@ -24,7 +37,10 @@ OpenCVServer::~OpenCVServer() {
     if (!bw_img.empty())
         bw_img.release();
 
-    kill = true;    
+    kill = true;   
+
+    // TODO: clean up all the existing process objs 
+
 }
 
 bool OpenCVServer::threshold(int val, int max_val, int type) {
@@ -113,6 +129,16 @@ void OpenCVServer::process_image() {
     process = true;
 }
 
+
+Ref<OpenCVProcess> OpenCVServer::create_process(int process_id) { // ability to create wrap and offload the process
+    Ref<OpenCVProcess> ocvp;
+    ocvp.instance();
+	ocvp->set_process(process_id);
+    // connect the signal from this to obj and then that directs control over other points
+    ocvp->connect("processed_image", this, "finished");
+    processes.push_back(ocvp);
+    return ocvp;
+}
 
 void OpenCVServer::kill_me() {
     kill = true;
