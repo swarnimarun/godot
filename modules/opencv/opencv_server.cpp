@@ -79,7 +79,7 @@ bool OpenCVServer::threshold(int val, int max_val, int type) {
         return false;
     
     cv::threshold(bw_img, dest, val, max_val, type);
-    dest_type = CV_BGR2RGB;
+    dest_type = CV_GRAY2RGB;
 
     emit_signal("value_update");    
     
@@ -111,7 +111,7 @@ bool OpenCVServer::load_source_from_path(String image) {
 
     cv::cvtColor(source, bw_img, cv::COLOR_BGR2GRAY);
 
-    height = source.rows;   
+    height = source.rows;
     width = source.cols;   
 
     return true;
@@ -178,7 +178,7 @@ Ref<OpenCVProcess> OpenCVServer::start_process(Array p_proc) { // ability to cre
             break;
         case OPENCV_PROCESS_THRESHOLD:   {
                 // Threshold process call
-                bool value = threshold(int(p_proc[0]), int(p_proc[1]), int(p_proc[2]));
+                bool value = threshold(int(p_proc[1]), int(p_proc[2]), int(p_proc[3]));
                 if (p_proc.size() < 3  || !value){
                     _err_print_error(FUNCTION_STR, __FILE__, __LINE__, "Method/Function Failed.");
                     return Ref<OpenCVProcess>();

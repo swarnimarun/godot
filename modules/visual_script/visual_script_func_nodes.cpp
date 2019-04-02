@@ -1686,8 +1686,8 @@ PropertyInfo VisualScriptOpenCVLoadImage::get_output_value_port_info(int p_idx) 
 PropertyInfo VisualScriptOpenCVLoadImage::get_input_value_port_info(int p_idx) const {	
 
 	PropertyInfo pi;
-	pi.name = String("Image");
-	pi.type = Variant::OBJECT;
+	pi.name = String("Image PATH");
+	pi.type = Variant::STRING;
 	return pi;
 }
 
@@ -1725,7 +1725,7 @@ public:
 
 	VisualScriptOpenCVLoadImage *node;
 
-	Ref<OpenCVServer> opencv_server;
+	Variant *opencv_server;
 
 	VisualScriptInstance *instance;
 
@@ -1737,9 +1737,7 @@ public:
 
 		Variant v = *p_inputs[0];
 
-		String img_path = ProjectSettings::get_singleton()->globalize_path(v.call("get_path", NULL, 0, r_error));
-
-		opencv_server->load_source_from_path(img_path);
+		opencv_server->call("load_source_from_path", p_inputs, 1, r_error);
 
 		*p_outputs[0] = opencv_server;
 
@@ -1757,7 +1755,7 @@ VisualScriptNodeInstance *VisualScriptOpenCVLoadImage::instance(VisualScriptInst
 
 	VisualScriptNodeInstanceOpenCVLoadImage *instance = memnew(VisualScriptNodeInstanceOpenCVLoadImage);
 	instance->node = this;
-	instance->opencv_server = ClassDB::instance("OpenCVServer");
+	instance->opencv_server = Object::cast_to<Variant>(ClassDB::instance("OpenCVServer"));
 	instance->instance = p_instance;
 	instance->returns = get_output_value_port_count();
 	instance->input_args = get_input_value_port_count() - 1;
