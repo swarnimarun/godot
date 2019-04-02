@@ -55,24 +55,30 @@ private:
 
     int task;
     
-    PoolVector<u_char> image_data;
+    //PoolVector<u_char> image_data;
+    Ref<ImageTexture> image_tex;
 
     bool kill;
     bool process;
     
     bool changed;
 	
-
+    // TODO: Implement a process queue
+    List<Array> process_queue; // Array should look like {id, args...}
 
     Thread *thread;
 
 public:
 
+    enum Process{
+        OPENCV_PROCESS_THRESHOLD = 0,
+        OPENCV_CANNY_EDGE = 1
+    };
 
     // My simple fun
     List<Ref<OpenCVProcess>> processes;
     
-    Ref<OpenCVProcess> create_process(int process_id); // ability to create wrap and offload the process
+    Ref<OpenCVProcess> start_process(int process_id); // ability to create wrap and offload the process
     
     static void do_something(void *data);
 
@@ -100,18 +106,18 @@ public:
 
     // load_source - this will take a new image as source and clear the destination image
     bool load_source_from_path(String image);
-    bool load_source_image(Image image);
 
     void process_image();
     void kill_me();
 
-    void process_image_data();
+    PoolByteArray get_image_data();
+    void process_image_tex();
     // make_source - this function will make the final image the source image
 
     // get_source - to get the image from source
     Array get_source();
     
-    PoolByteArray get_image_data();
+    //PoolByteArray get_image_data();
     Ref<ImageTexture> get_image_texture();
     void cleanup();
 
