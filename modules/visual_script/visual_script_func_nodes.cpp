@@ -37,6 +37,8 @@
 #include "scene/main/scene_tree.h"
 #include "visual_script_nodes.h"
 
+#include "modules/opencv/opencv_server.h"
+
 //////////////////////////////////////////
 ////////////////CALL//////////////////////
 //////////////////////////////////////////
@@ -937,6 +939,154 @@ static Ref<VisualScriptNode> create_function_call_node(const String &p_name) {
 	node->set_call_mode(cmode);
 	return node;
 }
+//////////////////////////////////////////
+////////////////OPENCV_OUTPUT//////////////////////
+//////////////////////////////////////////
+
+int VisualScriptOpenCVOutputTexture::get_input_value_port_count() const {
+	return 2; // OpenCVServer Object, Image Data Array 
+}
+
+int VisualScriptOpenCVOutputTexture::get_output_sequence_port_count() const {
+	return 1;
+}
+
+int VisualScriptOpenCVOutputTexture::get_output_value_port_count() const {
+	return 2;
+}
+
+bool VisualScriptOpenCVOutputTexture::has_input_sequence_port() const {
+	return true;
+}
+
+String VisualScriptOpenCVOutputTexture::get_output_sequence_port_text(int p_port) const {
+	return String();
+}
+
+PropertyInfo VisualScriptOpenCVOutputTexture::get_output_value_port_info(int p_idx) const {
+	if (p_idx == 0) {
+		PropertyInfo pi;
+		pi.name = String("pass");
+		pi.type = Variant::OBJECT;
+		return pi;
+	} else {
+		PropertyInfo pi;
+		pi.name = String("ImageTexture");
+		pi.type = Variant::OBJECT;
+		return pi;
+	}
+}
+
+PropertyInfo VisualScriptOpenCVOutputTexture::get_input_value_port_info(int p_idx) const {	
+	if (p_idx == 0) {
+		PropertyInfo pi;
+		pi.name = String("OpenCVServer");
+		pi.type = Variant::OBJECT;
+		return pi;
+	} else {
+		PropertyInfo pi;
+		pi.name = String("ImageData");
+		pi.type = Variant::ARRAY;
+		return pi;
+	}
+}
+
+String VisualScriptOpenCVOutputTexture::get_caption() const {
+	return String("OpenCV Output");
+}
+
+String VisualScriptOpenCVOutputTexture::get_text() const {
+	return String("");
+}
+
+void VisualScriptOpenCVOutputTexture::set_validate(bool val) {
+	validate = val;
+}
+
+bool VisualScriptOpenCVOutputTexture::get_validate() const {
+	return validate;
+}
+
+void VisualScriptOpenCVOutputTexture::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVOutputTexture::set_validate);
+	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVOutputTexture::get_validate);
+
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "validate"), "set_validate", "get_validate");
+
+}
+
+class VisualScriptNodeInstanceOpenCVOutputTexture : public VisualScriptNodeInstance {
+public:
+	bool validate;
+	int returns;
+	int input_args;
+
+	VisualScriptOpenCVOutputTexture *node;
+	VisualScriptInstance *instance;
+
+	//virtual int get_working_memory_size() const { return 0; }
+	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
+	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
+
+	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+
+		Variant v = *p_inputs[0];
+
+		// get Image Data
+		const Variant *dt = p_inputs[1];
+
+		PoolByteArray img_data = PoolVector<u_int8_t>(*dt);   /// WORKING :-)
+
+		//  things to do here
+		
+		// 1. create a new Image from Image data
+		Ref<Image> img = Object::cast_to<Image>(ClassDB::instance("Image"));
+		Vector2 vec = v.call(StringName("get_image_size"), NULL, 0, r_error);
+		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, img_data);         ///// SO THIS WORKS NOW :)111 
+		
+		// 2. create ImageTexture from that Image
+		Ref<ImageTexture> image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
+		image_tex->create_from_image(img);
+
+		*p_outputs[0] = *p_inputs[0];
+		*p_outputs[1] = image_tex;
+
+		if (!validate) {
+			//ignore call errors if validation is disabled
+			r_error.error = Variant::CallError::CALL_OK;
+			r_error_str = String();
+		}
+
+		return 0;
+	}
+};
+
+VisualScriptNodeInstance *VisualScriptOpenCVOutputTexture::instance(VisualScriptInstance *p_instance) {
+
+	VisualScriptNodeInstanceOpenCVOutputTexture *instance = memnew(VisualScriptNodeInstanceOpenCVOutputTexture);
+	instance->node = this;
+	instance->instance = p_instance;
+	instance->returns = get_output_value_port_count();
+	instance->input_args = get_input_value_port_count() - 1;
+	instance->validate = validate;
+	return instance;
+}
+
+VisualScriptOpenCVOutputTexture::TypeGuess VisualScriptOpenCVOutputTexture::guess_output_type(TypeGuess *p_inputs, int p_output) const {
+
+	if (p_output == 0) {
+		return p_inputs[0];
+	}
+
+	return VisualScriptNode::guess_output_type(p_inputs, p_output);
+}
+
+VisualScriptOpenCVOutputTexture::VisualScriptOpenCVOutputTexture() {
+	validate = false;
+}
+
 
 //////////////////////////////////////////
 ////////////////OPENCVCALL//////////////////////
@@ -1554,90 +1704,80 @@ static Ref<VisualScriptNode> create_opencv_function_call_node(const String &p_na
 }
 
 //////////////////////////////////////////
-////////////////OPENCV_OUTPUT//////////////////////
+////////////////OPENCV_LOAD//////////////////////
 //////////////////////////////////////////
 
-int VisualScriptOpenCVOutputTexture::get_input_value_port_count() const {
-	return 2; // OpenCVServer Object, Image Data Array 
-}
-
-int VisualScriptOpenCVOutputTexture::get_output_sequence_port_count() const {
+int VisualScriptOpenCVLoadImage::get_input_value_port_count() const {
 	return 1;
 }
 
-int VisualScriptOpenCVOutputTexture::get_output_value_port_count() const {
-	return 2;
+int VisualScriptOpenCVLoadImage::get_output_sequence_port_count() const {
+	return 1;
 }
 
-bool VisualScriptOpenCVOutputTexture::has_input_sequence_port() const {
+int VisualScriptOpenCVLoadImage::get_output_value_port_count() const {
+	return 1;
+}
+
+bool VisualScriptOpenCVLoadImage::has_input_sequence_port() const {
 	return true;
 }
 
-String VisualScriptOpenCVOutputTexture::get_output_sequence_port_text(int p_port) const {
+String VisualScriptOpenCVLoadImage::get_output_sequence_port_text(int p_port) const {
 	return String();
 }
 
-PropertyInfo VisualScriptOpenCVOutputTexture::get_output_value_port_info(int p_idx) const {
-	if (p_idx == 0) {
-		PropertyInfo pi;
-		pi.name = String("pass");
-		pi.type = Variant::OBJECT;
-		return pi;
-	} else {
-		PropertyInfo pi;
-		pi.name = String("ImageTexture");
-		pi.type = Variant::OBJECT;
-		return pi;
-	}
+PropertyInfo VisualScriptOpenCVLoadImage::get_output_value_port_info(int p_idx) const {
+	PropertyInfo pi;
+	pi.name = String("pass");
+	pi.type = Variant::OBJECT;
+	return pi;
 }
 
-PropertyInfo VisualScriptOpenCVOutputTexture::get_input_value_port_info(int p_idx) const {	
-	if (p_idx == 0) {
-		PropertyInfo pi;
-		pi.name = String("OpenCVServer");
-		pi.type = Variant::OBJECT;
-		return pi;
-	} else {
-		PropertyInfo pi;
-		pi.name = String("ImageData");
-		pi.type = Variant::ARRAY;
-		return pi;
-	}
+PropertyInfo VisualScriptOpenCVLoadImage::get_input_value_port_info(int p_idx) const {	
+
+	PropertyInfo pi;
+	pi.name = String("Image");
+	pi.type = Variant::OBJECT;
+	return pi;
 }
 
-String VisualScriptOpenCVOutputTexture::get_caption() const {
-	return String("OpenCV Output");
+String VisualScriptOpenCVLoadImage::get_caption() const {
+	return String("OpenCV Load");
 }
 
-String VisualScriptOpenCVOutputTexture::get_text() const {
+String VisualScriptOpenCVLoadImage::get_text() const {
 	return String("");
 }
 
-void VisualScriptOpenCVOutputTexture::set_validate(bool val) {
+void VisualScriptOpenCVLoadImage::set_validate(bool val) {
 	validate = val;
 }
 
-bool VisualScriptOpenCVOutputTexture::get_validate() const {
+bool VisualScriptOpenCVLoadImage::get_validate() const {
 	return validate;
 }
 
-void VisualScriptOpenCVOutputTexture::_bind_methods() {
+void VisualScriptOpenCVLoadImage::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVOutputTexture::set_validate);
-	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVOutputTexture::get_validate);
+	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVLoadImage::set_validate);
+	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVLoadImage::get_validate);
 
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "validate"), "set_validate", "get_validate");
 
 }
 
-class VisualScriptNodeInstanceOpenCVOutputTexture : public VisualScriptNodeInstance {
+class VisualScriptNodeInstanceOpenCVLoadImage : public VisualScriptNodeInstance {
 public:
 	bool validate;
 	int returns;
 	int input_args;
 
-	VisualScriptOpenCVOutputTexture *node;
+	VisualScriptOpenCVLoadImage *node;
+
+	Ref<OpenCVServer> opencv_server;
+
 	VisualScriptInstance *instance;
 
 	//virtual int get_working_memory_size() const { return 0; }
@@ -1648,24 +1788,11 @@ public:
 
 		Variant v = *p_inputs[0];
 
-		// get Image Data
-		const Variant *dt = p_inputs[1];
+		String img_path = ProjectSettings::get_singleton()->globalize_path(v.call("get_path", NULL, 0, r_error));
 
-		PoolByteArray img_data = PoolVector<u_int8_t>(*dt);   /// WORKING :-)
+		opencv_server->load_source_from_path(img_path);
 
-		//  things to do here
-		
-		// 1. create a new Image from Image data
-		Ref<Image> img = Object::cast_to<Image>(ClassDB::instance("Image"));
-		Vector2 vec = v.call(StringName("get_image_size"), NULL, 0, r_error);
-		img->create(vec.x, vec.y, false, Image::FORMAT_RGB8, img_data);         ///// SO THIS WORKS NOW :)111 
-		
-		// 2. create ImageTexture from that Image
-		Ref<ImageTexture> image_tex = Object::cast_to<ImageTexture>(ClassDB::instance("ImageTexture"));
-		image_tex->create_from_image(img);
-
-		*p_outputs[0] = *p_inputs[0];
-		*p_outputs[1] = image_tex;
+		*p_outputs[0] = opencv_server;
 
 		if (!validate) {
 			//ignore call errors if validation is disabled
@@ -1677,10 +1804,11 @@ public:
 	}
 };
 
-VisualScriptNodeInstance *VisualScriptOpenCVOutputTexture::instance(VisualScriptInstance *p_instance) {
+VisualScriptNodeInstance *VisualScriptOpenCVLoadImage::instance(VisualScriptInstance *p_instance) {
 
-	VisualScriptNodeInstanceOpenCVOutputTexture *instance = memnew(VisualScriptNodeInstanceOpenCVOutputTexture);
+	VisualScriptNodeInstanceOpenCVLoadImage *instance = memnew(VisualScriptNodeInstanceOpenCVLoadImage);
 	instance->node = this;
+	instance->opencv_server = ClassDB::instance("OpenCVServer");
 	instance->instance = p_instance;
 	instance->returns = get_output_value_port_count();
 	instance->input_args = get_input_value_port_count() - 1;
@@ -1688,7 +1816,7 @@ VisualScriptNodeInstance *VisualScriptOpenCVOutputTexture::instance(VisualScript
 	return instance;
 }
 
-VisualScriptOpenCVOutputTexture::TypeGuess VisualScriptOpenCVOutputTexture::guess_output_type(TypeGuess *p_inputs, int p_output) const {
+VisualScriptOpenCVLoadImage::TypeGuess VisualScriptOpenCVLoadImage::guess_output_type(TypeGuess *p_inputs, int p_output) const {
 
 	if (p_output == 0) {
 		return p_inputs[0];
@@ -1697,7 +1825,7 @@ VisualScriptOpenCVOutputTexture::TypeGuess VisualScriptOpenCVOutputTexture::gues
 	return VisualScriptNode::guess_output_type(p_inputs, p_output);
 }
 
-VisualScriptOpenCVOutputTexture::VisualScriptOpenCVOutputTexture() {
+VisualScriptOpenCVLoadImage::VisualScriptOpenCVLoadImage() {
 	validate = false;
 }
 
@@ -3256,6 +3384,7 @@ void register_visual_script_func_nodes() {
 	VisualScriptLanguage::singleton->add_register_func("functions/call", create_node_generic<VisualScriptFunctionCall>);
 	VisualScriptLanguage::singleton->add_register_func("functions/opencv_call", create_node_generic<VisualScriptOpenCVFunctionCall>);
 	VisualScriptLanguage::singleton->add_register_func("functions/opencv_output", create_node_generic<VisualScriptOpenCVOutputTexture>);
+	VisualScriptLanguage::singleton->add_register_func("functions/opencv_load_image", create_node_generic<VisualScriptOpenCVLoadImage>);
 	VisualScriptLanguage::singleton->add_register_func("functions/set", create_node_generic<VisualScriptPropertySet>);
 	VisualScriptLanguage::singleton->add_register_func("functions/get", create_node_generic<VisualScriptPropertyGet>);
 

@@ -89,6 +89,7 @@ void register_visual_script_types() {
 	ClassDB::register_class<VisualScriptFunctionCall>();
 	ClassDB::register_class<VisualScriptOpenCVFunctionCall>();
 	ClassDB::register_class<VisualScriptOpenCVOutputTexture>();
+	ClassDB::register_class<VisualScriptOpenCVLoadImage>();
 	ClassDB::register_class<VisualScriptPropertySet>();
 	ClassDB::register_class<VisualScriptPropertyGet>();
 	//ClassDB::register_type<VisualScriptScriptCall>();

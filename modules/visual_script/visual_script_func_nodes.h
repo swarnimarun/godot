@@ -138,6 +138,48 @@ VARIANT_ENUM_CAST(VisualScriptFunctionCall::RPCCallMode);
 
 // /// OPENCV
 
+
+class VisualScriptOpenCVLoadImage: public VisualScriptNode {
+
+	GDCLASS(VisualScriptOpenCVLoadImage, VisualScriptNode)
+
+	bool validate;
+
+protected:
+	//virtual void _validate_property(PropertyInfo &property) const;
+	static void _bind_methods();
+
+public:
+
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+	
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual int get_input_value_port_count() const;
+	virtual int get_output_value_port_count() const;
+	
+	virtual PropertyInfo get_input_value_port_info(int p_idx) const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
+
+	virtual String get_caption() const;
+	virtual String get_text() const;
+	virtual String get_category() const { return "functions"; };
+
+	void set_validate(bool p_amount);
+	bool get_validate() const;
+
+	//used by editor, this is not really saved
+	// void set_breakpoint(bool p_breakpoint);
+	// bool is_breakpoint() const;
+
+	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
+	
+	virtual TypeGuess guess_output_type(TypeGuess *p_inputs, int p_output) const;
+
+	VisualScriptOpenCVLoadImage();
+};
+
 class VisualScriptOpenCVFunctionCall : public VisualScriptNode {
 
 	GDCLASS(VisualScriptOpenCVFunctionCall, VisualScriptNode)
