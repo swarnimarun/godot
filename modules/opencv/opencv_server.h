@@ -32,8 +32,8 @@ public:
 	OpenCVProcess();
 };
 
-class OpenCVServer : public Object {
-    GDCLASS(OpenCVServer, Object)
+class OpenCVServer : public Reference {
+    GDCLASS(OpenCVServer, Reference)
 
 protected:
 	static void _bind_methods(); // bind the public methods to the class db
@@ -68,11 +68,6 @@ private:
 
     Thread *thread;
 
-    void process_image();
-
-    PoolByteArray get_image_data();
-    void process_image_tex();
-
 
 public:
 
@@ -81,6 +76,12 @@ public:
         OPENCV_PROCESS_THRESHOLD = 1,
         OPENCV_PROCESS_CANNY = 2
     };
+
+
+    void process_image();
+
+    PoolByteArray get_image_data();
+    void process_image_tex();
 
     // My simple fun
     List<Ref<OpenCVProcess>> processes;
