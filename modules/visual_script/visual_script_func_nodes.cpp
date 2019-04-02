@@ -1515,14 +1515,8 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_base_type", "base_type"), &VisualScriptOpenCVFunctionCall::set_base_type);
 	ClassDB::bind_method(D_METHOD("get_base_type"), &VisualScriptOpenCVFunctionCall::get_base_type);
 
-	// ClassDB::bind_method(D_METHOD("set_base_script", "base_script"), &VisualScriptOpenCVFunctionCall::set_base_script);
-	// ClassDB::bind_method(D_METHOD("get_base_script"), &VisualScriptOpenCVFunctionCall::get_base_script);
-
 	ClassDB::bind_method(D_METHOD("set_basic_type", "basic_type"), &VisualScriptOpenCVFunctionCall::set_basic_type);
 	ClassDB::bind_method(D_METHOD("get_basic_type"), &VisualScriptOpenCVFunctionCall::get_basic_type);
-
-	ClassDB::bind_method(D_METHOD("set_singleton", "singleton"), &VisualScriptOpenCVFunctionCall::set_singleton);
-	ClassDB::bind_method(D_METHOD("get_singleton"), &VisualScriptOpenCVFunctionCall::get_singleton);
 
 	ClassDB::bind_method(D_METHOD("set_function", "function"), &VisualScriptOpenCVFunctionCall::set_function);
 	ClassDB::bind_method(D_METHOD("get_function"), &VisualScriptOpenCVFunctionCall::get_function);
@@ -1535,9 +1529,6 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_set_argument_cache", "argument_cache"), &VisualScriptOpenCVFunctionCall::_set_argument_cache);
 	ClassDB::bind_method(D_METHOD("_get_argument_cache"), &VisualScriptOpenCVFunctionCall::_get_argument_cache);
-
-	ClassDB::bind_method(D_METHOD("set_rpc_call_mode", "mode"), &VisualScriptOpenCVFunctionCall::set_rpc_call_mode);
-	ClassDB::bind_method(D_METHOD("get_rpc_call_mode"), &VisualScriptOpenCVFunctionCall::get_rpc_call_mode);
 
 	ClassDB::bind_method(D_METHOD("set_validate", "enable"), &VisualScriptOpenCVFunctionCall::set_validate);
 	ClassDB::bind_method(D_METHOD("get_validate"), &VisualScriptOpenCVFunctionCall::get_validate);
@@ -1562,23 +1553,17 @@ void VisualScriptOpenCVFunctionCall::_bind_methods() {
 		script_ext_hint += "*." + E->get();
 	}
 
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_type", PROPERTY_HINT_TYPE_STRING, "OpenCVServer"), "set_base_type", "get_base_type");
-	// ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_script", PROPERTY_HINT_FILE, script_ext_hint), "set_base_script", "get_base_script");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "singleton"), "set_singleton", "get_singleton");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "basic_type", PROPERTY_HINT_ENUM, bt), "set_basic_type", "get_basic_type");
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "node_path", PROPERTY_HINT_NODE_PATH_TO_EDITED_NODE), "set_base_path", "get_base_path");
+	// ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_type", PROPERTY_HINT_TYPE_STRING, "OpenCVServer"), "set_base_type", "get_base_type");
+	// // ADD_PROPERTY(PropertyInfo(Variant::STRING, "base_script", PROPERTY_HINT_FILE, script_ext_hint), "set_base_script", "get_base_script");
+	// ADD_PROPERTY(PropertyInfo(Variant::STRING, "singleton"), "set_singleton", "get_singleton");
+	// ADD_PROPERTY(PropertyInfo(Variant::INT, "basic_type", PROPERTY_HINT_ENUM, bt), "set_basic_type", "get_basic_type");
+	// ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "node_path", PROPERTY_HINT_NODE_PATH_TO_EDITED_NODE), "set_base_path", "get_base_path");
 	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "argument_cache", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_argument_cache", "_get_argument_cache");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "function"), "set_function", "get_function"); //when set, if loaded properly, will override argument count.
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "use_default_args"), "set_use_default_args", "get_use_default_args");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "validate"), "set_validate", "get_validate");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "rpc_call_mode", PROPERTY_HINT_ENUM, "Disabled,Reliable,Unreliable,ReliableToID,UnreliableToID"), "set_rpc_call_mode", "get_rpc_call_mode"); //when set, if loaded properly, will override argument count.
 
 
-	BIND_ENUM_CONSTANT(RPC_DISABLED);
-	BIND_ENUM_CONSTANT(RPC_RELIABLE);
-	BIND_ENUM_CONSTANT(RPC_UNRELIABLE);
-	BIND_ENUM_CONSTANT(RPC_RELIABLE_TO_ID);
-	BIND_ENUM_CONSTANT(RPC_UNRELIABLE_TO_ID);
 }
 
 class VisualScriptNodeInstanceOpenCVFunctionCall : public VisualScriptNodeInstance {
@@ -1587,9 +1572,7 @@ public:
 	int input_args;
 	bool validate;
 	int returns;
-	VisualScriptOpenCVFunctionCall::RPCCallMode rpc_mode;
 	StringName function;
-	StringName singleton;
 
 	VisualScriptOpenCVFunctionCall *node;
 	VisualScriptInstance *instance;
@@ -1598,44 +1581,12 @@ public:
 	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
 	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
 
-	_FORCE_INLINE_ bool call_rpc(Object *p_base, const Variant **p_args, int p_argcount) {
-
-		if (!p_base)
-			return false;
-
-		Node *node = Object::cast_to<Node>(p_base);
-		if (!node)
-			return false;
-
-		int to_id = 0;
-		bool reliable = true;
-
-		if (rpc_mode >= VisualScriptOpenCVFunctionCall::RPC_RELIABLE_TO_ID) {
-			to_id = *p_args[0];
-			p_args += 1;
-			p_argcount -= 1;
-			if (rpc_mode == VisualScriptOpenCVFunctionCall::RPC_UNRELIABLE_TO_ID) {
-				reliable = false;
-			}
-		} else if (rpc_mode == VisualScriptOpenCVFunctionCall::RPC_UNRELIABLE) {
-			reliable = false;
-		}
-
-		node->rpcp(to_id, !reliable, function, p_args, p_argcount);
-
-		return true;
-	}
 
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
 
 		Variant v = *p_inputs[0];
 
-		if (rpc_mode) {
-			Object *obj = v;
-			if (obj) {
-				call_rpc(obj, p_inputs + 1, input_args - 1);
-			}
-		} else if (returns) {
+		if (returns) {
 			if (returns >= 2) {
 				*p_outputs[1] = v.call(function, p_inputs + 1, input_args, r_error);
 			} else if (returns == 1) {
@@ -1667,12 +1618,10 @@ VisualScriptNodeInstance *VisualScriptOpenCVFunctionCall::instance(VisualScriptI
 	VisualScriptNodeInstanceOpenCVFunctionCall *instance = memnew(VisualScriptNodeInstanceOpenCVFunctionCall);
 	instance->node = this;
 	instance->instance = p_instance;
-	instance->singleton = singleton;
 	instance->function = function;
 	instance->returns = get_output_value_port_count();
 	instance->node_path = base_path;
 	instance->input_args = get_input_value_port_count() - 1;
-	instance->rpc_mode = rpc_call_mode;
 	instance->validate = validate;
 	return instance;
 }
