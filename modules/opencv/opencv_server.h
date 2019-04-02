@@ -64,9 +64,15 @@ private:
     bool changed;
 	
     // TODO: Implement a process queue
-    List<Array> process_queue; // Array should hold the arguments for the process it wants to call
+    // List<Array> process_queue; // Array should hold the arguments for the process it wants to call starting from process ID
 
     Thread *thread;
+
+    void process_image();
+
+    PoolByteArray get_image_data();
+    void process_image_tex();
+
 
 public:
 
@@ -79,7 +85,7 @@ public:
     // My simple fun
     List<Ref<OpenCVProcess>> processes;
     
-    Ref<OpenCVProcess> start_process(int process_id, Array p_proc); // ability to create wrap and offload the process
+    Ref<OpenCVProcess> start_process(Array p_proc); // ability to create wrap and offload the process
     
     static void do_something(void *data);  // this is the main function n
 
@@ -105,16 +111,7 @@ public:
     // load_source - this will take a new image as source and clear the destination image
     bool load_source_from_path(String image);
 
-    void process_image();
-
-    PoolByteArray get_image_data();
-    void process_image_tex();
-    // make_source - this function will make the final image the source image
-
-    // get_source - to get the image from source
-    Array get_source();
     
-    //PoolByteArray get_image_data();
     Ref<ImageTexture> get_image_texture();
     void cleanup();
 

@@ -55,17 +55,11 @@ OpenCVServer::~OpenCVServer() {
 
     image_tex.unref();
 
-    // TODO: clean up all the existing process objs 
+    // clean up all the existing process objs 
     for (auto E = processes.front(); E; E->next()) {
         E->get()->unreference(); // ensure they have been unref'd
     }
     processes.clear();
-
-    // clean the process_queue
-    for (auto E = process_queue.front(); E; E->next()) {
-        E->get().clear();
-    }
-    process_queue.clear();
 
 }
 
@@ -160,11 +154,14 @@ void OpenCVServer::process_image_tex() {
 
 
 
-Ref<OpenCVProcess> OpenCVServer::start_process(int process_id, Array p_proc) { // ability to create wrap and offload the process
+Ref<OpenCVProcess> OpenCVServer::start_process(Array p_proc) { // ability to create wrap and offload the process
     
-    if (process)
+    if (process || p_proc.size() < 1)
         return Ref<OpenCVProcess>(); // basically returning NULL
-    
+
+
+    int process_id = int(p_proc[0]);
+
     Ref<OpenCVProcess> ocvp;
     ocvp.instance();
 	ocvp->set_process(process_id);
@@ -204,8 +201,6 @@ Ref<OpenCVProcess> OpenCVServer::start_process(int process_id, Array p_proc) { /
 }
 
 
-
-
 void OpenCVServer::do_something(void *data) {
 
     OpenCVServer *sev = (OpenCVServer *)data;
@@ -233,16 +228,11 @@ void OpenCVServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("start_process", "process_id", "process_arguments"), &OpenCVServer::start_process);
     //ClassDB::bind_method(D_METHOD("get_image_data"), &OpenCVServer::get_image_data);
     ClassDB::bind_method(D_METHOD("get_image_texture"), &OpenCVServer::get_image_texture);
-    //ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
-    //ClassDB::bind_method(D_METHOD("process_image"), &OpenCVServer::process_image);
-
+    
     ClassDB::bind_method(D_METHOD("load_source_from_path", "source_image_path"), &OpenCVServer::load_source_from_path);
     //ClassDB::bind_method(D_METHOD("load_source_image", "source_image"), &OpenCVServer::load_source_image);
 
     ADD_SIGNAL(MethodInfo("value_update"));
     ADD_SIGNAL(MethodInfo("processed_image"));
     
-    // BIND_ENUM_CONSTANT(OPENCV_PROCESS_GRAYSCALE);
-    // BIND_ENUM_CONSTANT(OPENCV_PROCESS_THRESHOLD);
-    // BIND_ENUM_CONSTANT(OPENCV_THRESHOLD);
 }
