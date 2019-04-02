@@ -15,12 +15,18 @@ OpenCVProcess::OpenCVProcess() {
     // create a process point
 }
 
+void OpenCVProcess::set_process(int p_id) {
+    process_id = p_id;   // this exists as a dummy value only
+}
+
 void OpenCVProcess::finished() {
-    emit_signal("finished");
+    emit_signal("finish");
+    this->call_deferred("free");
 }
 
 void OpenCVProcess::_bind_methods() {
-    ADD_SIGNAL(MethodInfo("finished"));
+    ClassDB::bind_method(D_METHOD("finished"), &OpenCVProcess::finished);
+    ADD_SIGNAL(MethodInfo("finish"));
 }
 
 OpenCVServer::OpenCVServer() {
@@ -131,10 +137,14 @@ void OpenCVServer::process_image() {
 
 
 Ref<OpenCVProcess> OpenCVServer::create_process(int process_id) { // ability to create wrap and offload the process
+    if (dest.empty()) {
+        return Ref<OpenCVProcess>(); // useless
+    }
     Ref<OpenCVProcess> ocvp;
     ocvp.instance();
 	ocvp->set_process(process_id);
     // connect the signal from this to obj and then that directs control over other points
+    process_image();
     ocvp->connect("processed_image", this, "finished");
     processes.push_back(ocvp);
     return ocvp;
@@ -147,7 +157,6 @@ void OpenCVServer::kill_me() {
 void OpenCVServer::do_something(void *data) {
 
     OpenCVServer *sev = (OpenCVServer *)data;
-
 
     while (true) {
         if (sev->process) {
@@ -168,6 +177,7 @@ Vector2 OpenCVServer::get_image_size() {
 
 void OpenCVServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("threshold", "value", "max_value", "type"), &OpenCVServer::threshold, DEFVAL(50), DEFVAL(100), DEFVAL(1));
+    ClassDB::bind_method(D_METHOD("create_process", "process_id"), &OpenCVServer::create_process, DEFVAL(0));
     ClassDB::bind_method(D_METHOD("get_image_data"), &OpenCVServer::get_image_data);
     ClassDB::bind_method(D_METHOD("get_image_texture"), &OpenCVServer::get_image_texture);
     ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
