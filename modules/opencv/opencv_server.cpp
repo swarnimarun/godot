@@ -11,24 +11,31 @@
 #include "core/os/thread.h"
 
 
+////////// OPENCV PROCESS ///////// 
+
 OpenCVProcess::OpenCVProcess() {
     // create a process point
 }
 
 void OpenCVProcess::set_process(int p_id) {
     process_id = p_id;   // this exists as a dummy value only
+    // this might come in handy for future use
 }
 
 void OpenCVProcess::finished() {
     emit_signal("finish");
     //this->call_deferred("free");
-    this->unreference();
+    //this->unreference();
 }
 
 void OpenCVProcess::_bind_methods() {
     ClassDB::bind_method(D_METHOD("finished"), &OpenCVProcess::finished);
     ADD_SIGNAL(MethodInfo("finish"));
 }
+
+
+////////// OPENCV SERVER //////////////
+
 
 OpenCVServer::OpenCVServer() {
     thread = Thread::create(do_something, this);
@@ -49,19 +56,56 @@ OpenCVServer::~OpenCVServer() {
     image_tex.unref();
 
     // TODO: clean up all the existing process objs 
-    
+    for (auto E = processes.front(); E; E->next()) {
+        E->get()->unreference(); // ensure they have been unref'd
+    }
+    processes.clear();
+
+    // clean the process_queue
+    for (auto E = process_queue.front(); E; E->next()) {
+        E->get().clear();
+    }
+    process_queue.clear();
+
 }
 
+////////// GET FUNCTIONS /////////////
+
+
+Ref<ImageTexture> OpenCVServer::get_image_texture() {
+    return image_tex; 
+}
+
+
+////////// PROCESSES ///////////
+
 bool OpenCVServer::threshold(int val, int max_val, int type) {
-    if (source.empty() || process == true)
+    
+    if (source.empty())
         return false;
+    
     cv::threshold(bw_img, dest, val, max_val, type);
     dest_type = CV_BGR2RGB;
 
     emit_signal("value_update");    
-
+    
     return true;
 }
+
+bool OpenCVServer::grayscale() {
+    
+    if (source.empty())
+        return false;
+    
+    dest = bw_img;
+    dest_type = CV_GRAY2RGB;
+
+    emit_signal("value_update");    
+    
+    return true;
+}
+
+///// LOAD ///////
 
 bool OpenCVServer::load_source_from_path(String image) {
     cv::String path(image.utf8().get_data());
@@ -71,7 +115,7 @@ bool OpenCVServer::load_source_from_path(String image) {
     if (source.empty())
         return false;
 
-    cv::cvtColor(source, bw_img, cv::COLOR_BGR2RGB);
+    cv::cvtColor(source, bw_img, cv::COLOR_BGR2GRAY);
 
     height = source.rows;   
     width = source.cols;   
@@ -79,6 +123,8 @@ bool OpenCVServer::load_source_from_path(String image) {
     return true;
 }
 
+
+//////// INTERNALS //////////////
 
 PoolByteArray OpenCVServer::get_image_data() {
     cv::Mat rgbFrame(width, height, CV_8UC3);
@@ -97,6 +143,8 @@ PoolByteArray OpenCVServer::get_image_data() {
     return PoolVector<u_int8_t>(v);
 }
 
+
+
 void OpenCVServer::process_image_tex() {
     // 1. create a new Image from Image data
     Ref<Image> img = Object::cast_to<Image>(ClassDB::instance("Image"));
@@ -109,18 +157,12 @@ void OpenCVServer::process_image_tex() {
     emit_signal("processed_image");
 }
 
-Ref<ImageTexture> OpenCVServer::get_image_texture() {
-    return image_tex; 
-}
-
-void OpenCVServer::process_image() {
-    process = true;
-}
 
 
-Ref<OpenCVProcess> OpenCVServer::start_process(int process_id) { // ability to create wrap and offload the process
+
+Ref<OpenCVProcess> OpenCVServer::start_process(int process_id, Array p_proc) { // ability to create wrap and offload the process
     
-    if (process || dest.empty())
+    if (process)
         return Ref<OpenCVProcess>(); // basically returning NULL
     
     Ref<OpenCVProcess> ocvp;
@@ -128,16 +170,41 @@ Ref<OpenCVProcess> OpenCVServer::start_process(int process_id) { // ability to c
 	ocvp->set_process(process_id);
     // connect the signal from this to obj and then that directs control over other points
     
-    process_image();
+    switch (process_id) {
+        case OPENCV_PROCESS_GRAYSCALE:   {
+                // Get Grayscale Image call
+                if (!grayscale()) {
+                    _err_print_error(FUNCTION_STR, __FILE__, __LINE__, "Method/Function Failed.");
+                    return Ref<OpenCVProcess>();
+                }
+            }
+            break;
+        case OPENCV_PROCESS_THRESHOLD:   {
+                // Threshold process call
+                bool value = threshold(int(p_proc[0]), int(p_proc[1]), int(p_proc[2]));
+                if (p_proc.size() < 3  || !value){
+                    _err_print_error(FUNCTION_STR, __FILE__, __LINE__, "Method/Function Failed.");
+                    return Ref<OpenCVProcess>();
+                }
+            }
+            break;
+        case OPENCV_PROCESS_CANNY:
+            return Ref<OpenCVProcess>();
+            break;
+        default:
+            return Ref<OpenCVProcess>();
+            break;
+    }
+
+    process = true;
 
     this->connect("processed_image", ocvp.ptr(), "finished");
     processes.push_back(ocvp);
     return ocvp;
 }
 
-void OpenCVServer::kill_me() {
-    kill = true;
-}
+
+
 
 void OpenCVServer::do_something(void *data) {
 
@@ -146,7 +213,7 @@ void OpenCVServer::do_something(void *data) {
     while (true) {
         if (sev->process) {
             sev->process_image_tex();
-            // once this method is called the thread is block and because we aren't stacking calls so it will only be done once.
+            // once this method is called the thread is blocked and because we aren't stacking calls so it will only be done once.
 
             sev->process = false;  // this needs to be before so that we don't have any changes during processing which might get overriden.
         }
@@ -158,16 +225,15 @@ void OpenCVServer::do_something(void *data) {
     return;
 }
 
-Vector2 OpenCVServer::get_image_size() {
-    return Vector2(width, height);
-}
+
+
 
 void OpenCVServer::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("threshold", "value", "max_value", "type"), &OpenCVServer::threshold, DEFVAL(50), DEFVAL(100), DEFVAL(1));
-    ClassDB::bind_method(D_METHOD("start_process", "process_id"), &OpenCVServer::start_process, DEFVAL(0));
+    //ClassDB::bind_method(D_METHOD("threshold", "value", "max_value", "type"), &OpenCVServer::threshold, DEFVAL(50), DEFVAL(100), DEFVAL(1));
+    ClassDB::bind_method(D_METHOD("start_process", "process_id", "process_arguments"), &OpenCVServer::start_process);
     //ClassDB::bind_method(D_METHOD("get_image_data"), &OpenCVServer::get_image_data);
     ClassDB::bind_method(D_METHOD("get_image_texture"), &OpenCVServer::get_image_texture);
-    ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
+    //ClassDB::bind_method(D_METHOD("get_image_size"), &OpenCVServer::get_image_size);
     //ClassDB::bind_method(D_METHOD("process_image"), &OpenCVServer::process_image);
 
     ClassDB::bind_method(D_METHOD("load_source_from_path", "source_image_path"), &OpenCVServer::load_source_from_path);
@@ -176,6 +242,7 @@ void OpenCVServer::_bind_methods() {
     ADD_SIGNAL(MethodInfo("value_update"));
     ADD_SIGNAL(MethodInfo("processed_image"));
     
-    BIND_ENUM_CONSTANT(OPENCV_PROCESS_THRESHOLD);
-    //BIND_ENUM_CONSTANT(OPENCV_THRESHOLD);
+    // BIND_ENUM_CONSTANT(OPENCV_PROCESS_GRAYSCALE);
+    // BIND_ENUM_CONSTANT(OPENCV_PROCESS_THRESHOLD);
+    // BIND_ENUM_CONSTANT(OPENCV_THRESHOLD);
 }

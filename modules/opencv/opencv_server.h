@@ -64,26 +64,24 @@ private:
     bool changed;
 	
     // TODO: Implement a process queue
-    List<Array> process_queue; // Array should look like {id, args...}
+    List<Array> process_queue; // Array should hold the arguments for the process it wants to call
 
     Thread *thread;
 
 public:
 
     enum Process{
-        OPENCV_PROCESS_THRESHOLD = 0,
-        OPENCV_CANNY_EDGE = 1
+        OPENCV_PROCESS_GRAYSCALE = 0,
+        OPENCV_PROCESS_THRESHOLD = 1,
+        OPENCV_PROCESS_CANNY = 2
     };
 
     // My simple fun
     List<Ref<OpenCVProcess>> processes;
     
-    Ref<OpenCVProcess> start_process(int process_id); // ability to create wrap and offload the process
+    Ref<OpenCVProcess> start_process(int process_id, Array p_proc); // ability to create wrap and offload the process
     
-    static void do_something(void *data);
-
-    int error_flag; // this flag is there to give more details about the failure of a process [0 = working fine]
-    // this won't have any use right now hopefully I will implement it some day.. :)
+    static void do_something(void *data);  // this is the main function n
 
     // operations will be a function that can be called as per the enum that we have sorta like notifications I suppose...??
     // I am still not very sure about this one
@@ -93,6 +91,7 @@ public:
     // use bool to check whether a function processing fails or passes also 
     
     bool threshold(int val, int max_val, int type); // take the value from the threshold and apply it on the source and save to dest
+    bool grayscale(); // simply make the image gray scale
     
     // -- to --  try to understand and implement
     bool canny_mask(int blur_size, int threshold, int ratio, int kernel_size); // apply effect on the source and save to dest
@@ -102,13 +101,11 @@ public:
     bool set_zeros();
     // -- ed --
 
-    Vector2 get_image_size();
 
     // load_source - this will take a new image as source and clear the destination image
     bool load_source_from_path(String image);
 
     void process_image();
-    void kill_me();
 
     PoolByteArray get_image_data();
     void process_image_tex();

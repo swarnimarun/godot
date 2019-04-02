@@ -5,6 +5,7 @@
 
 void register_opencv_types() {
 	ClassDB::register_class<OpenCV>();
+	ClassDB::register_class<OpenCVProcess>();
 	ClassDB::register_class<OpenCVServer>();
 }
 
