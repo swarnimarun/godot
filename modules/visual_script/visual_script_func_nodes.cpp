@@ -1725,7 +1725,7 @@ public:
 
 	VisualScriptOpenCVLoadImage *node;
 
-	Variant *opencv_server;
+	Object *opencv_server;
 
 	VisualScriptInstance *instance;
 
@@ -1736,6 +1736,12 @@ public:
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
 
 		Variant v = *p_inputs[0];
+
+		// Variant **d_po = new Variant*();
+		// *d_po[0] = Variant(ProjectSettings::get_singleton()->globalize_path(v.call("get_path", NULL, 0, NULL)));
+		// const Variant **d_point = const_cast<Variant **>(d_po);
+		//! I seriously don't want to use such ugly casts
+
 
 		opencv_server->call("load_source_from_path", p_inputs, 1, r_error);
 
@@ -1755,7 +1761,7 @@ VisualScriptNodeInstance *VisualScriptOpenCVLoadImage::instance(VisualScriptInst
 
 	VisualScriptNodeInstanceOpenCVLoadImage *instance = memnew(VisualScriptNodeInstanceOpenCVLoadImage);
 	instance->node = this;
-	instance->opencv_server = Object::cast_to<Variant>(ClassDB::instance("OpenCVServer"));
+	instance->opencv_server = ClassDB::instance("OpenCVServer");
 	instance->instance = p_instance;
 	instance->returns = get_output_value_port_count();
 	instance->input_args = get_input_value_port_count() - 1;
