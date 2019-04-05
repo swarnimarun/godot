@@ -99,6 +99,23 @@ bool OpenCVServer::grayscale() {
     return true;
 }
 
+/////////// PROCESS ARRAYS ///////////////
+
+PoolIntArray OpenCVServer::create_threshold(int val, int max_val, int type) {
+    PoolIntArray ret;
+    ret.append(OPENCV_PROCESS_THRESHOLD); // id is 1 hardcoded
+    ret.append(val);
+    ret.append(max_val);
+    ret.append(type);
+    return ret;
+}
+
+PoolIntArray OpenCVServer::create_greyscale() {
+    PoolIntArray ret;
+    ret.append(OPENCV_PROCESS_GRAYSCALE); // id is 1 hardcoded
+    return ret;
+}
+
 ///// LOAD ///////
 
 bool OpenCVServer::load_source_from_path(String image) {
@@ -154,7 +171,7 @@ void OpenCVServer::process_image_tex() {
 
 
 
-Ref<OpenCVProcess> OpenCVServer::start_process(Array p_proc) { // ability to create wrap and offload the process
+Ref<OpenCVProcess> OpenCVServer::start_process(PoolIntArray p_proc) { // ability to create wrap and offload the process
     
     if (process || p_proc.size() < 1)
         return Ref<OpenCVProcess>(); // basically returning NULL
@@ -224,7 +241,8 @@ void OpenCVServer::do_something(void *data) {
 
 
 void OpenCVServer::_bind_methods() {
-    //ClassDB::bind_method(D_METHOD("threshold", "value", "max_value", "type"), &OpenCVServer::threshold, DEFVAL(50), DEFVAL(100), DEFVAL(1));
+    ClassDB::bind_method(D_METHOD("threshold", "value", "max_value", "type"), &OpenCVServer::create_threshold, DEFVAL(50), DEFVAL(100), DEFVAL(1));
+    ClassDB::bind_method(D_METHOD("greyscale"), &OpenCVServer::create_greyscale);
     ClassDB::bind_method(D_METHOD("start_process", "process_arguments"), &OpenCVServer::start_process);
     //ClassDB::bind_method(D_METHOD("get_image_data"), &OpenCVServer::get_image_data);
     ClassDB::bind_method(D_METHOD("get_image_texture"), &OpenCVServer::get_image_texture);

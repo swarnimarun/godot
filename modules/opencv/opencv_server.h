@@ -85,7 +85,7 @@ public:
     // My simple fun
     List<Ref<OpenCVProcess>> processes;
     
-    Ref<OpenCVProcess> start_process(Array p_proc); // ability to create wrap and offload the process
+    Ref<OpenCVProcess> start_process(PoolIntArray p_proc); // ability to create wrap and offload the process
     
     static void do_something(void *data);  // this is the main function n
 
@@ -98,7 +98,12 @@ public:
     
     bool threshold(int val, int max_val, int type); // take the value from the threshold and apply it on the source and save to dest
     bool grayscale(); // simply make the image gray scale
-    
+
+    PoolIntArray create_threshold(int val, int max_val, int type);
+    PoolIntArray create_greyscale();
+
+
+
     // -- to --  try to understand and implement
     bool canny_mask(int blur_size, int threshold, int ratio, int kernel_size); // apply effect on the source and save to dest
     // generic functions
