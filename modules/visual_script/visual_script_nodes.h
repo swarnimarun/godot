@@ -103,6 +103,114 @@ public:
 	VisualScriptFunction();
 };
 
+// LIST NODE -> This is only to be inherited from
+
+class VisualScriptListNode : public VisualScriptNode {
+	GDCLASS(VisualScriptListNode, VisualScriptNode)
+
+public:
+	// add the required enums and variables
+	enum NodeListSide {
+		INPUT_PORTS,
+		OUTPUT_PORTS,
+		INPUT_OUTPUT_PORTS
+	};
+
+private:
+	struct Port {
+
+		Variant::Type type;
+		String name;
+
+		Port() { type = Variant::NIL; }
+	};
+	Vector<Port> inputs;
+	Vector<Port> outputs;
+
+	NodeListSide active_side;
+
+protected:
+	virtual bool _set(const StringName &p_name, const Variant &p_value) = 0;
+	virtual bool _get(const StringName &p_name, Variant &r_ret) const = 0;
+	virtual void _get_property_list(List<PropertyInfo> *p_list) const = 0;
+
+	static void _bind_methods();
+public:
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual int get_input_value_port_count() const;
+	virtual int get_output_value_port_count() const;
+
+	virtual PropertyInfo get_input_value_port_info(int p_idx) const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
+
+	virtual String get_caption() const = 0;
+	virtual String get_text() const = 0;
+	virtual String get_category() const = 0;
+
+	virtual void add_input_port(Variant::Type p_type, const String &p_name, int p_index);
+	virtual void remove_input_port(int p_idx);
+	int get_input_count() const { return inputs.size(); }
+
+	// TODO: IMPLEMENT THESE	
+	// void set_input_port_type(int p_argidx, Variant::Type p_type);
+	// Variant::Type get_input_port_type(int p_argidx) const;
+	// void set_input_port_name(int p_argidx, const String &p_name);
+	// String get_input_port_name(int p_argidx) const;
+
+	virtual void add_output_port(Variant::Type p_type, const String &p_name, int p_index);
+	virtual void remove_output_port(int p_idx);
+	int get_output_count() const { return outputs.size(); }
+
+	// TODO: IMPLEMENT THESE
+	// void set_output_port_type(int p_argidx, Variant::Type p_type);
+	// Variant::Type get_output_port_type(int p_argidx) const;
+	// void set_output_port_name(int p_argidx, const String &p_name);
+	// String get_output_port_name(int p_argidx) const;
+
+	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance) = 0;
+
+	void set_active_side(NodeListSide side);
+
+	bool has_both_list_ports() const { return active_side == NodeListSide::INPUT_OUTPUT_PORTS; };
+	bool has_list_input_ports() const { return (active_side == NodeListSide::INPUT_PORTS || has_both_list_ports()); };
+	bool has_list_output_ports() const { return (active_side == NodeListSide::OUTPUT_PORTS || has_both_list_ports()); };
+	
+
+	VisualScriptListNode();
+};
+
+VARIANT_ENUM_CAST(VisualScriptListNode::NodeListSide);
+
+class VisualScriptComposeArray : public VisualScriptListNode {
+	GDCLASS(VisualScriptComposeArray, VisualScriptListNode)
+
+private:
+	bool is_seqeunced;
+
+protected:
+	virtual bool _set(const StringName &p_name, const Variant &p_value);
+	virtual bool _get(const StringName &p_name, Variant &r_ret) const;
+	virtual void _get_property_list(List<PropertyInfo> *p_list) const;
+
+public:
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual String get_caption() const;
+	virtual String get_text() const;
+	virtual String get_category() const { return "functions"; }
+
+	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
+
+	VisualScriptComposeArray();
+};
+
 class VisualScriptOperator : public VisualScriptNode {
 
 	GDCLASS(VisualScriptOperator, VisualScriptNode)

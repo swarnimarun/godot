@@ -208,6 +208,9 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	void _expression_text_changed(const String &p_text, int p_id);
 
+	void _add_input_port(int p_idx);
+	void _add_output_port(int p_idx);
+
 	String revert_on_drag;
 
 	void _input(const Ref<InputEvent> &p_event);

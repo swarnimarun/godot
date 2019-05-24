@@ -357,6 +357,213 @@ int VisualScriptFunction::get_stack_size() const {
 }
 
 //////////////////////////////////////////
+////////////////LISTNODE//////////////////
+//////////////////////////////////////////
+
+int VisualScriptListNode::get_output_value_port_count() const {
+	return outputs.size();
+}
+
+int VisualScriptListNode::get_input_value_port_count() const {
+	return inputs.size();
+}
+
+int VisualScriptListNode::get_output_sequence_port_count() const {
+	return 0;
+}
+
+String VisualScriptListNode::get_output_sequence_port_text(int p_port) const {
+	return "";
+}
+
+bool VisualScriptListNode::has_input_sequence_port() const {
+	return false;
+}
+
+PropertyInfo VisualScriptListNode::get_input_value_port_info(int p_idx) const {
+	
+	print_line("get:: " + itos(p_idx));
+	ERR_FAIL_INDEX_V(p_idx, inputs.size(), PropertyInfo());
+	
+	PropertyInfo info;
+	info.type = inputs[p_idx].type;
+	info.name = inputs[p_idx].name;
+	print_line("get name:: " + info.name);
+	print_line("get type:: " + Variant::get_type_name(info.type));
+	return info;
+}
+
+PropertyInfo VisualScriptListNode::get_output_value_port_info(int p_idx) const {
+	
+	ERR_FAIL_INDEX_V(p_idx, outputs.size(), PropertyInfo());
+	
+	PropertyInfo info;
+	info.type = outputs[p_idx].type;
+	info.name = outputs[p_idx].name;
+	return info;
+}
+
+void VisualScriptListNode::add_input_port(Variant::Type p_type, const String &p_name, int p_index = -1) {
+	
+	print_line("add input");
+
+	if (active_side == NodeListSide::OUTPUT_PORTS)
+		return;
+
+	print_line("adding input");
+
+	Port inp;
+	inp.name = p_name;
+	inp.type = p_type;
+	if (p_index >= 0)
+		inputs.insert(p_index, inp);
+	else
+		inputs.push_back(inp);
+
+	ports_changed_notify();
+}
+
+void VisualScriptListNode::remove_input_port(int p_idx) {
+
+	if (active_side == NodeListSide::OUTPUT_PORTS)
+		return;
+
+	ERR_FAIL_INDEX(p_idx, inputs.size());
+	inputs.remove(p_idx);
+
+	ports_changed_notify();
+}
+
+void VisualScriptListNode::add_output_port(Variant::Type p_type, const String &p_name, int p_index = -1) {
+
+	if (active_side == NodeListSide::INPUT_PORTS)
+		return;
+
+	Port out;
+	out.name = p_name;
+	out.type = p_type;
+	if (p_index >= 0)
+		outputs.insert(p_index, out);
+	else
+		outputs.push_back(out);
+
+	ports_changed_notify();
+}
+
+void VisualScriptListNode::remove_output_port(int p_idx) {
+
+	if (active_side == NodeListSide::INPUT_PORTS)
+		return;
+
+	ERR_FAIL_INDEX(p_idx, outputs.size());
+	outputs.remove(p_idx);
+	
+	ports_changed_notify();
+}
+
+void VisualScriptListNode::set_active_side(NodeListSide side) {
+	active_side = side;
+}
+
+VisualScriptListNode::VisualScriptListNode() {
+	active_side = NodeListSide::INPUT_OUTPUT_PORTS;
+}
+
+void VisualScriptListNode::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("add_input_port", "type", "name", "index"), &VisualScriptListNode::add_input_port, DEFVAL(Variant::NIL), DEFVAL("value"), DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("remove_input_port", "index"), &VisualScriptListNode::remove_input_port);
+}
+
+
+//////////////////////////////////////////
+////////////////COMPOSEA//////////////////
+//////////////////////////////////////////
+
+bool VisualScriptComposeArray::_set(const StringName &p_name, const Variant &p_value) {
+
+	if (p_name == "sequenced/sequenced") {
+		is_seqeunced = p_value;
+		ports_changed_notify();
+		return true;
+	}
+
+	return false;
+}
+
+bool VisualScriptComposeArray::_get(const StringName &p_name, Variant &r_ret) const {
+
+	if (p_name == "sequenced/sequenced") {
+		r_ret = is_seqeunced;
+		return true;
+	}
+
+	return false;
+}
+void VisualScriptComposeArray::_get_property_list(List<PropertyInfo> *p_list) const {
+
+	p_list->push_back(PropertyInfo(Variant::BOOL, "sequenced/sequenced"));
+}
+
+int VisualScriptComposeArray::get_output_sequence_port_count() const {
+	return is_seqeunced ? 1 : 0;
+}
+bool VisualScriptComposeArray::has_input_sequence_port() const {
+	return is_seqeunced;
+}
+
+String VisualScriptComposeArray::get_output_sequence_port_text(int p_port) const {
+	return "";
+}
+
+class VisualScriptComposeArrayInstance : public VisualScriptNodeInstance {
+public:
+	VisualScriptComposeArray *node;
+	VisualScriptInstance *instance;
+
+	//virtual int get_working_memory_size() const { return 0; }
+
+	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+
+		Variant va = *p_inputs[0];
+
+		int count = node->get_input_count();
+
+		Array arr;
+		for (int i = 0; i < count; i++) {
+			arr.push_back(*p_inputs[i]);
+		}
+
+		Variant res = Variant(arr);
+
+		*p_outputs[0] = res;
+
+		return 0;
+	}
+};
+
+VisualScriptNodeInstance *VisualScriptComposeArray::instance(VisualScriptInstance *p_instance) {
+
+	VisualScriptComposeArrayInstance *instance = memnew(VisualScriptComposeArrayInstance);
+	instance->node = this;
+	instance->instance = p_instance;
+	return instance;
+}
+
+String VisualScriptComposeArray::get_caption() const {
+	return "Compose Array";
+}
+
+String VisualScriptComposeArray::get_text() const {
+	return "Add inputs: ";
+}
+
+VisualScriptComposeArray::VisualScriptComposeArray() {
+	is_seqeunced = false;
+	add_output_port(Variant::ARRAY, "array");
+	set_active_side(NodeListSide::INPUT_PORTS);
+}
+
+//////////////////////////////////////////
 ////////////////OPERATOR//////////////////
 //////////////////////////////////////////
 
@@ -3699,6 +3906,7 @@ void register_visual_script_nodes() {
 	VisualScriptLanguage::singleton->add_register_func("operators/logic/select", create_node_generic<VisualScriptSelect>);
 
 	VisualScriptLanguage::singleton->add_register_func("functions/deconstruct", create_node_generic<VisualScriptDeconstruct>);
+	VisualScriptLanguage::singleton->add_register_func("functions/composearray", create_node_generic<VisualScriptComposeArray>);
 
 	for (int i = 1; i < Variant::VARIANT_MAX; i++) {
 

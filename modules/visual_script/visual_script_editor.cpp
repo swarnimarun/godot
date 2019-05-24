@@ -548,8 +548,24 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 		}
 
 		bool has_gnode_text = false;
-
-		if (Object::cast_to<VisualScriptExpression>(node.ptr())) {
+		if (Object::cast_to<VisualScriptListNode>(node.ptr())) {
+			has_gnode_text = true;
+			HBoxContainer *hbc = memnew(HBoxContainer);
+			Button *addinp = memnew(Button);
+			addinp->set_text("Add Input +");
+			hbc->add_child(addinp);
+			addinp->connect("pressed", this, "_add_input_port", varray(E->get()));
+			hbc->add_spacer();
+			if (Object::cast_to<VisualScriptListNode>(node.ptr())->has_list_output_ports()) {
+				Button *addout = memnew(Button);
+				addout->set_text("Add Output +");
+				hbc->add_child(addout);
+				addout->connect("pressed", this, "_add_output_port", varray(E->get()));
+			} else {
+				hbc->add_spacer();
+			}
+			gnode->add_child(hbc);
+		} else if (Object::cast_to<VisualScriptExpression>(node.ptr())) {
 			has_gnode_text = true;
 			LineEdit *line_edit = memnew(LineEdit);
 			line_edit->set_text(node->get_text());
@@ -1073,6 +1089,43 @@ void VisualScriptEditor::_member_button(Object *p_item, int p_column, int p_butt
 			return; //or crash because it will become invalid
 		}
 	}
+}
+
+void VisualScriptEditor::_add_input_port(int p_id) {
+	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_id);
+	if (!vsn.is_valid())
+		return;
+	
+	updating_graph = true;
+
+	// undo_redo->create_action(TTR("Add Input Port"), UndoRedo::MERGE_ENDS);
+	// undo_redo->add_do_method(vsn.ptr(), "add_input_port");
+	// undo_redo->add_undo_method(vsn.ptr(), "remove_input_port", vsn->get_input_count());
+	// undo_redo->add_do_method(this, "_update_graph", p_id);
+	// undo_redo->add_undo_method(this, "_update_graph", p_id);
+	// undo_redo->commit_action();
+	vsn->add_input_port(Variant::NIL, "value", -1);
+	_update_graph(p_id);
+
+	updating_graph = false;
+}
+
+
+void VisualScriptEditor::_add_output_port(int p_id) {
+	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_id);
+	if (!vsn.is_valid())
+		return;
+	
+	updating_graph = true;
+
+	undo_redo->create_action(TTR("Add Output Port"), UndoRedo::MERGE_ENDS);
+	undo_redo->add_do_method(vsn.ptr(), "add_output_port", Variant::NIL, "value", -1);
+	undo_redo->add_undo_method(vsn.ptr(), "remove_output_port", vsn->get_output_count());
+	undo_redo->add_do_method(this, "_update_graph", p_id);
+	undo_redo->add_undo_method(this, "_update_graph", p_id);
+	undo_redo->commit_action();
+
+	updating_graph = false;
 }
 
 void VisualScriptEditor::_expression_text_changed(const String &p_text, int p_id) {
@@ -3460,6 +3513,8 @@ void VisualScriptEditor::_bind_methods() {
 	ClassDB::bind_method("_cancel_connect_node", &VisualScriptEditor::_cancel_connect_node);
 	ClassDB::bind_method("_create_new_node", &VisualScriptEditor::_create_new_node);
 	ClassDB::bind_method("_expression_text_changed", &VisualScriptEditor::_expression_text_changed);
+	ClassDB::bind_method("_add_input_port", &VisualScriptEditor::_add_input_port);
+	ClassDB::bind_method("_add_output_port", &VisualScriptEditor::_add_output_port);
 
 	ClassDB::bind_method("get_drag_data_fw", &VisualScriptEditor::get_drag_data_fw);
 	ClassDB::bind_method("can_drop_data_fw", &VisualScriptEditor::can_drop_data_fw);
