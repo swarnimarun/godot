@@ -382,14 +382,11 @@ bool VisualScriptListNode::has_input_sequence_port() const {
 
 PropertyInfo VisualScriptListNode::get_input_value_port_info(int p_idx) const {
 	
-	print_line("get:: " + itos(p_idx));
 	ERR_FAIL_INDEX_V(p_idx, inputs.size(), PropertyInfo());
 	
 	PropertyInfo info;
 	info.type = inputs[p_idx].type;
 	info.name = inputs[p_idx].name;
-	print_line("get name:: " + info.name);
-	print_line("get type:: " + Variant::get_type_name(info.type));
 	return info;
 }
 
@@ -404,13 +401,9 @@ PropertyInfo VisualScriptListNode::get_output_value_port_info(int p_idx) const {
 }
 
 void VisualScriptListNode::add_input_port(Variant::Type p_type, const String &p_name, int p_index = -1) {
-	
-	print_line("add input");
 
 	if (active_side == NodeListSide::OUTPUT_PORTS)
 		return;
-
-	print_line("adding input");
 
 	Port inp;
 	inp.name = p_name;

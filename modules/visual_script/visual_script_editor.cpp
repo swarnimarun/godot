@@ -1098,16 +1098,15 @@ void VisualScriptEditor::_add_input_port(int p_id) {
 	
 	updating_graph = true;
 
-	// undo_redo->create_action(TTR("Add Input Port"), UndoRedo::MERGE_ENDS);
-	// undo_redo->add_do_method(vsn.ptr(), "add_input_port");
-	// undo_redo->add_undo_method(vsn.ptr(), "remove_input_port", vsn->get_input_count());
-	// undo_redo->add_do_method(this, "_update_graph", p_id);
-	// undo_redo->add_undo_method(this, "_update_graph", p_id);
-	// undo_redo->commit_action();
-	vsn->add_input_port(Variant::NIL, "value", -1);
-	_update_graph(p_id);
+	undo_redo->create_action(TTR("Add Input Port"), UndoRedo::MERGE_ENDS);
+	undo_redo->add_do_method(vsn.ptr(), "add_input_port");
+	undo_redo->add_undo_method(vsn.ptr(), "remove_input_port", vsn->get_input_count());
+	undo_redo->add_do_method(this, "_update_graph", p_id);
+	undo_redo->add_undo_method(this, "_update_graph", p_id);	
 
 	updating_graph = false;
+
+	undo_redo->commit_action();
 }
 
 
@@ -1123,9 +1122,10 @@ void VisualScriptEditor::_add_output_port(int p_id) {
 	undo_redo->add_undo_method(vsn.ptr(), "remove_output_port", vsn->get_output_count());
 	undo_redo->add_do_method(this, "_update_graph", p_id);
 	undo_redo->add_undo_method(this, "_update_graph", p_id);
-	undo_redo->commit_action();
 
 	updating_graph = false;
+
+	undo_redo->commit_action(); // this is here because otherwise update graph won't even be called
 }
 
 void VisualScriptEditor::_expression_text_changed(const String &p_text, int p_id) {
@@ -1139,7 +1139,7 @@ void VisualScriptEditor::_expression_text_changed(const String &p_text, int p_id
 	undo_redo->create_action(TTR("Change Expression"), UndoRedo::MERGE_ENDS);
 	undo_redo->add_do_property(vse.ptr(), "expression", p_text);
 	undo_redo->add_undo_property(vse.ptr(), "expression", vse->get("expression"));
-	undo_redo->add_do_method(this, "_update_graph", p_id);
+	undo_redo->add_do_method(this, "_update_graph", p_id); // this is not even going to be called for heaven's sake
 	undo_redo->add_undo_method(this, "_update_graph", p_id);
 	undo_redo->commit_action();
 
