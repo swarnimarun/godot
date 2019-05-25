@@ -547,8 +547,10 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 			gnode->set_show_close_button(true);
 		}
 
+		Ref<VisualScriptListNode> listnode = node;
+
 		bool has_gnode_text = false;
-		if (Object::cast_to<VisualScriptListNode>(node.ptr())) {
+		if (listnode.is_valid()) {
 			has_gnode_text = true;
 			HBoxContainer *hbc = memnew(HBoxContainer);
 			Button *addinp = memnew(Button);
@@ -556,7 +558,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 			hbc->add_child(addinp);
 			addinp->connect("pressed", this, "_add_input_port", varray(E->get()));
 			hbc->add_spacer();
-			if (Object::cast_to<VisualScriptListNode>(node.ptr())->has_list_output_ports()) {
+			if (listnode->has_list_output_ports()) {
 				Button *addout = memnew(Button);
 				addout->set_text("Add Output +");
 				hbc->add_child(addout);
@@ -674,7 +676,12 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 				right_name = pi.name;
 			}
 
-			HBoxContainer *hbc = memnew(HBoxContainer);
+			//HBoxContainer *hbc = memnew(HBoxContainer);
+			VBoxContainer *vbc = memnew(VBoxContainer);
+			HBoxContainer *hbc1 = memnew(HBoxContainer);
+			HBoxContainer *hbc2 = memnew(HBoxContainer);
+			vbc->add_child(hbc1);
+			vbc->add_child(hbc2);
 
 			if (left_ok) {
 
@@ -686,10 +693,10 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 					TextureRect *tf = memnew(TextureRect);
 					tf->set_texture(t);
 					tf->set_stretch_mode(TextureRect::STRETCH_KEEP_CENTERED);
-					hbc->add_child(tf);
+					hbc1->add_child(tf);
 				}
 
-				hbc->add_child(memnew(Label(left_name)));
+				hbc1->add_child(memnew(Label(left_name)));
 
 				if (left_type != Variant::NIL && !script->is_input_value_port_connected(edited_func, E->get(), i)) {
 
@@ -723,27 +730,28 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 						button->set_text(value);
 					}
 					button->connect("pressed", this, "_default_value_edited", varray(button, E->get(), i));
-					hbc->add_child(button);
+					hbc2->add_child(button);
 				}
 			} else {
 				Control *c = memnew(Control);
 				c->set_custom_minimum_size(Size2(10, 0) * EDSCALE);
-				hbc->add_child(c);
+				hbc1->add_child(c);
 			}
 
-			hbc->add_spacer();
+			hbc1->add_spacer();
+			hbc2->add_spacer();
 
 			if (i < mixed_seq_ports) {
 
 				Label *text2 = memnew(Label);
 				text2->set_text(node->get_output_sequence_port_text(i));
 				text2->set_align(Label::ALIGN_RIGHT);
-				hbc->add_child(text2);
+				hbc1->add_child(text2);
 			}
 
 			if (right_ok) {
 
-				hbc->add_child(memnew(Label(right_name)));
+				hbc1->add_child(memnew(Label(right_name)));
 
 				Ref<Texture> t;
 				if (right_type >= 0 && right_type < Variant::VARIANT_MAX) {
@@ -753,11 +761,11 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 					TextureRect *tf = memnew(TextureRect);
 					tf->set_texture(t);
 					tf->set_stretch_mode(TextureRect::STRETCH_KEEP_CENTERED);
-					hbc->add_child(tf);
+					hbc1->add_child(tf);
 				}
 			}
 
-			gnode->add_child(hbc);
+			gnode->add_child(vbc);
 
 			bool dark_theme = get_constant("dark_theme", "Editor");
 			if (i < mixed_seq_ports) {
