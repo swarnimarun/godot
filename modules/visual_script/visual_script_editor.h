@@ -211,6 +211,11 @@ class VisualScriptEditor : public ScriptEditorBase {
 	void _add_input_port(int p_idx);
 	void _add_output_port(int p_idx);
 
+	void _remove_input_port(int p_idx, int p_portid);
+
+	void _port_name_changed(const String &p_text, int p_id, int p_portid);
+	void _port_type_changed(int selected, int p_id, int p_portid);
+
 	String revert_on_drag;
 
 	void _input(const Ref<InputEvent> &p_event);

@@ -127,6 +127,9 @@ private:
 	Vector<Port> inputs;
 	Vector<Port> outputs;
 
+	bool type_editable;
+	bool name_editable;
+
 	NodeListSide active_side;
 
 protected:
@@ -135,6 +138,11 @@ protected:
 	virtual void _get_property_list(List<PropertyInfo> *p_list) const = 0;
 
 	static void _bind_methods();
+
+	void set_active_side(NodeListSide side);
+	void set_name_editable(bool value);
+	void set_type_editable(bool value);
+
 public:
 	virtual int get_output_sequence_port_count() const;
 	virtual bool has_input_sequence_port() const;
@@ -153,27 +161,25 @@ public:
 
 	virtual void add_input_port(Variant::Type p_type, const String &p_name, int p_index);
 	virtual void remove_input_port(int p_idx);
-	int get_input_count() const { return inputs.size(); }
 
-	// TODO: IMPLEMENT THESE	
-	// void set_input_port_type(int p_argidx, Variant::Type p_type);
-	// Variant::Type get_input_port_type(int p_argidx) const;
-	// void set_input_port_name(int p_argidx, const String &p_name);
-	// String get_input_port_name(int p_argidx) const;
+	bool is_port_type_editable() const;
+	bool is_port_name_editable() const;
+
+	void set_input_port_type(int p_idx, Variant::Type p_type);
+	Variant::Type get_input_port_type(int p_idx) const;
+	void set_input_port_name(int p_idx, const String &p_name);
+	String get_input_port_name(int p_idx) const;
 
 	virtual void add_output_port(Variant::Type p_type, const String &p_name, int p_index);
 	virtual void remove_output_port(int p_idx);
-	int get_output_count() const { return outputs.size(); }
 
-	// TODO: IMPLEMENT THESE
-	// void set_output_port_type(int p_argidx, Variant::Type p_type);
-	// Variant::Type get_output_port_type(int p_argidx) const;
-	// void set_output_port_name(int p_argidx, const String &p_name);
-	// String get_output_port_name(int p_argidx) const;
+	// NOT SURE IF THIS WILL EVEN BE REQUIRED
+	// void set_output_port_type(int p_idx, Variant::Type p_type);
+	// Variant::Type get_output_port_type(int p_idx) const;
+	// void set_output_port_name(int p_idx, const String &p_name);
+	// String get_output_port_name(int p_idx) const;
 
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance) = 0;
-
-	void set_active_side(NodeListSide side);
 
 	bool has_both_list_ports() const { return active_side == NodeListSide::INPUT_OUTPUT_PORTS; };
 	bool has_list_input_ports() const { return (active_side == NodeListSide::INPUT_PORTS || has_both_list_ports()); };
@@ -199,6 +205,9 @@ protected:
 public:
 	virtual int get_output_sequence_port_count() const;
 	virtual bool has_input_sequence_port() const;
+
+	virtual int get_output_value_port_count() const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
 
 	virtual String get_output_sequence_port_text(int p_port) const;
 

@@ -695,9 +695,35 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 					tf->set_stretch_mode(TextureRect::STRETCH_KEEP_CENTERED);
 					hbc1->add_child(tf);
 				}
+				if (listnode.is_valid()) {
+					if (listnode->is_port_name_editable()) {
+						LineEdit *nm_edit = memnew(LineEdit);
+						nm_edit->set_text(listnode->get_input_port_name(i));
+						nm_edit->set_expand_to_text_length(true);
+						nm_edit->add_font_override("font", get_font("source", "EditorFonts"));
+						nm_edit->connect("text_changed", this, "_port_name_changed", varray(E->get(), i));
+						hbc1->add_child(nm_edit);
+					} else {
+						hbc1->add_child(memnew(Label(left_name)));
+					}
 
-				hbc1->add_child(memnew(Label(left_name)));
+					if (listnode->is_port_type_editable()) {
+						OptionButton *opt_btn = memnew(OptionButton);
+						opt_btn->add_item("Variant");
+						for (int i = 1; i < Variant::VARIANT_MAX; i++)
+							opt_btn->add_item(Variant::get_type_name(Variant::Type(i)));
+						opt_btn->select(listnode->get_input_port_type(i));
+						opt_btn->connect("item_selected", this, "_port_type_changed", varray(E->get(), i));
+						hbc1->add_child(opt_btn);
+					}
 
+					if (listnode->has_list_input_ports()) {
+						Button *del_btn = memnew(Button);
+						del_btn->set_text("X");
+						del_btn->connect("pressed", this, "_remove_input_port", varray(E->get(), i));
+						hbc1->add_child(del_btn);
+					}
+				}
 				if (left_type != Variant::NIL && !script->is_input_value_port_connected(edited_func, E->get(), i)) {
 
 					PropertyInfo pi = node->get_input_value_port_info(i);
@@ -750,6 +776,13 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 			}
 
 			if (right_ok) {
+
+				if (listnode.is_valid() && listnode->has_list_output_ports()) {
+					Button *del_btn = memnew(Button);
+					del_btn->set_text("X");
+					hbc1->add_child(del_btn);
+					// del_btn->connect("pressed", this, "_remove_output_port", varray(E-get(), i));
+				}
 
 				hbc1->add_child(memnew(Label(right_name)));
 
@@ -1099,41 +1132,95 @@ void VisualScriptEditor::_member_button(Object *p_item, int p_column, int p_butt
 	}
 }
 
-void VisualScriptEditor::_add_input_port(int p_id) {
-	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_id);
+void VisualScriptEditor::_add_input_port(int p_idx) {
+	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_idx);
 	if (!vsn.is_valid())
 		return;
-	
+
 	updating_graph = true;
 
 	undo_redo->create_action(TTR("Add Input Port"), UndoRedo::MERGE_ENDS);
 	undo_redo->add_do_method(vsn.ptr(), "add_input_port");
-	undo_redo->add_undo_method(vsn.ptr(), "remove_input_port", vsn->get_input_count());
-	undo_redo->add_do_method(this, "_update_graph", p_id);
-	undo_redo->add_undo_method(this, "_update_graph", p_id);	
+	undo_redo->add_undo_method(vsn.ptr(), "remove_input_port", vsn->get_input_value_port_count());
+	undo_redo->add_do_method(this, "_update_graph", p_idx);
+	undo_redo->add_undo_method(this, "_update_graph", p_idx);
 
 	updating_graph = false;
 
 	undo_redo->commit_action();
 }
 
-
-void VisualScriptEditor::_add_output_port(int p_id) {
-	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_id);
+void VisualScriptEditor::_add_output_port(int p_idx) {
+	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_idx);
 	if (!vsn.is_valid())
 		return;
-	
+
 	updating_graph = true;
 
 	undo_redo->create_action(TTR("Add Output Port"), UndoRedo::MERGE_ENDS);
 	undo_redo->add_do_method(vsn.ptr(), "add_output_port", Variant::NIL, "value", -1);
-	undo_redo->add_undo_method(vsn.ptr(), "remove_output_port", vsn->get_output_count());
+	undo_redo->add_undo_method(vsn.ptr(), "remove_output_port", vsn->get_output_value_port_count());
+	undo_redo->add_do_method(this, "_update_graph", p_idx);
+	undo_redo->add_undo_method(this, "_update_graph", p_idx);
+
+	updating_graph = false;
+
+	undo_redo->commit_action(); // this is here because otherwise update graph won't even be called
+}
+
+void VisualScriptEditor::_remove_input_port(int p_idx, int p_portid) {
+	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_idx);
+	if (!vsn.is_valid())
+		return;
+
+	updating_graph = true;
+
+	undo_redo->create_action(TTR("Remove Input Port"), UndoRedo::MERGE_ENDS);
+	undo_redo->add_do_method(vsn.ptr(), "remove_input_port", p_portid);
+	undo_redo->add_undo_method(vsn.ptr(), "add_input_port", vsn->get_input_port_type(p_idx), vsn->get_input_port_name(p_idx), p_portid);
+	undo_redo->add_do_method(this, "_update_graph", p_idx);
+	undo_redo->add_undo_method(this, "_update_graph", p_idx);
+
+	updating_graph = false;
+
+	undo_redo->commit_action();
+}
+
+void VisualScriptEditor::_port_name_changed(const String &p_text, int p_id, int p_portid) {
+	Ref<VisualScriptListNode> vse = script->get_node(edited_func, p_id);
+	if (!vse.is_valid())
+		return;
+
+	updating_graph = true;
+
+	undo_redo->create_action(TTR("Change Port Name"), UndoRedo::MERGE_ENDS);
+	undo_redo->add_do_method(vse.ptr(), "set_input_port_name", p_portid, p_text);
+	undo_redo->add_undo_method(vse.ptr(), "set_input_port_name", p_portid, vse->get_input_port_name(p_portid));
+	undo_redo->commit_action();
+
+	Node *node = graph->get_node(itos(p_id));
+	if (Object::cast_to<Control>(node))
+		Object::cast_to<Control>(node)->set_size(Vector2(1, 1)); //shrink if text is smaller
+
+	updating_graph = false;
+}
+
+void VisualScriptEditor::_port_type_changed(int selected, int p_id, int p_portid) {
+	Ref<VisualScriptListNode> vsn = script->get_node(edited_func, p_id);
+	if (!vsn.is_valid())
+		return;
+
+	updating_graph = true;
+
+	undo_redo->create_action(TTR("Change Port Type"), UndoRedo::MERGE_ENDS);
+	undo_redo->add_do_method(vsn.ptr(), "set_input_port_type", p_portid, Variant::Type(selected));
+	undo_redo->add_undo_method(vsn.ptr(), "set_input_port_type", p_portid, vsn->get_input_port_type(p_portid));
 	undo_redo->add_do_method(this, "_update_graph", p_id);
 	undo_redo->add_undo_method(this, "_update_graph", p_id);
 
 	updating_graph = false;
 
-	undo_redo->commit_action(); // this is here because otherwise update graph won't even be called
+	undo_redo->commit_action();
 }
 
 void VisualScriptEditor::_expression_text_changed(const String &p_text, int p_id) {
@@ -3523,6 +3610,9 @@ void VisualScriptEditor::_bind_methods() {
 	ClassDB::bind_method("_expression_text_changed", &VisualScriptEditor::_expression_text_changed);
 	ClassDB::bind_method("_add_input_port", &VisualScriptEditor::_add_input_port);
 	ClassDB::bind_method("_add_output_port", &VisualScriptEditor::_add_output_port);
+	ClassDB::bind_method("_remove_input_port", &VisualScriptEditor::_remove_input_port);
+	ClassDB::bind_method("_port_name_changed", &VisualScriptEditor::_port_name_changed);
+	ClassDB::bind_method("_port_type_changed", &VisualScriptEditor::_port_type_changed);
 
 	ClassDB::bind_method("get_drag_data_fw", &VisualScriptEditor::get_drag_data_fw);
 	ClassDB::bind_method("can_drop_data_fw", &VisualScriptEditor::can_drop_data_fw);

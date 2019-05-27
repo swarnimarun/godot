@@ -381,9 +381,9 @@ bool VisualScriptListNode::has_input_sequence_port() const {
 }
 
 PropertyInfo VisualScriptListNode::get_input_value_port_info(int p_idx) const {
-	
+
 	ERR_FAIL_INDEX_V(p_idx, inputs.size(), PropertyInfo());
-	
+
 	PropertyInfo info;
 	info.type = inputs[p_idx].type;
 	info.name = inputs[p_idx].name;
@@ -391,13 +391,50 @@ PropertyInfo VisualScriptListNode::get_input_value_port_info(int p_idx) const {
 }
 
 PropertyInfo VisualScriptListNode::get_output_value_port_info(int p_idx) const {
-	
+
 	ERR_FAIL_INDEX_V(p_idx, outputs.size(), PropertyInfo());
-	
+
 	PropertyInfo info;
 	info.type = outputs[p_idx].type;
 	info.name = outputs[p_idx].name;
 	return info;
+}
+
+void VisualScriptListNode::set_name_editable(bool value) {
+	name_editable = value;
+}
+void VisualScriptListNode::set_type_editable(bool value) {
+	type_editable = value;
+}
+
+bool VisualScriptListNode::is_port_type_editable() const {
+	return type_editable;
+}
+bool VisualScriptListNode::is_port_name_editable() const {
+	return name_editable;
+}
+
+Variant::Type VisualScriptListNode::get_input_port_type(int p_idx) const {
+	ERR_FAIL_INDEX_V(p_idx, inputs.size(), Variant::NIL);
+	return inputs[p_idx].type;
+}
+void VisualScriptListNode::set_input_port_type(int p_idx, Variant::Type p_type) {
+	ERR_FAIL_INDEX(p_idx, inputs.size());
+
+	inputs.write[p_idx].type = p_type;
+	ports_changed_notify();
+}
+
+String VisualScriptListNode::get_input_port_name(int p_idx) const {
+	ERR_FAIL_INDEX_V(p_idx, inputs.size(), "");
+	return inputs[p_idx].name;
+}
+void VisualScriptListNode::set_input_port_name(int p_idx, const String &p_name) {
+	ERR_FAIL_INDEX(p_idx, inputs.size());
+
+	inputs.write[p_idx].name = p_name;
+	ports_changed_notify();
+	_change_notify();
 }
 
 void VisualScriptListNode::add_input_port(Variant::Type p_type, const String &p_name, int p_index = -1) {
@@ -414,6 +451,7 @@ void VisualScriptListNode::add_input_port(Variant::Type p_type, const String &p_
 		inputs.push_back(inp);
 
 	ports_changed_notify();
+	_change_notify();
 }
 
 void VisualScriptListNode::remove_input_port(int p_idx) {
@@ -425,6 +463,7 @@ void VisualScriptListNode::remove_input_port(int p_idx) {
 	inputs.remove(p_idx);
 
 	ports_changed_notify();
+	_change_notify();
 }
 
 void VisualScriptListNode::add_output_port(Variant::Type p_type, const String &p_name, int p_index = -1) {
@@ -441,6 +480,7 @@ void VisualScriptListNode::add_output_port(Variant::Type p_type, const String &p
 		outputs.push_back(out);
 
 	ports_changed_notify();
+	_change_notify();
 }
 
 void VisualScriptListNode::remove_output_port(int p_idx) {
@@ -450,8 +490,9 @@ void VisualScriptListNode::remove_output_port(int p_idx) {
 
 	ERR_FAIL_INDEX(p_idx, outputs.size());
 	outputs.remove(p_idx);
-	
+
 	ports_changed_notify();
+	_change_notify();
 }
 
 void VisualScriptListNode::set_active_side(NodeListSide side) {
@@ -460,13 +501,19 @@ void VisualScriptListNode::set_active_side(NodeListSide side) {
 
 VisualScriptListNode::VisualScriptListNode() {
 	active_side = NodeListSide::INPUT_OUTPUT_PORTS;
+	type_editable = false;
+	name_editable = false;
 }
 
 void VisualScriptListNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("add_input_port", "type", "name", "index"), &VisualScriptListNode::add_input_port, DEFVAL(Variant::NIL), DEFVAL("value"), DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("add_output_port", "type", "name", "index"), &VisualScriptListNode::add_output_port, DEFVAL(Variant::NIL), DEFVAL("value"), DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("remove_input_port", "index"), &VisualScriptListNode::remove_input_port);
+	ClassDB::bind_method(D_METHOD("get_input_port_type"), &VisualScriptListNode::get_input_port_type);
+	ClassDB::bind_method(D_METHOD("set_input_port_type"), &VisualScriptListNode::set_input_port_type);
+	ClassDB::bind_method(D_METHOD("get_input_port_name"), &VisualScriptListNode::get_input_port_name);
+	ClassDB::bind_method(D_METHOD("set_input_port_name"), &VisualScriptListNode::set_input_port_name);
 }
-
 
 //////////////////////////////////////////
 ////////////////COMPOSEA//////////////////
@@ -508,27 +555,30 @@ String VisualScriptComposeArray::get_output_sequence_port_text(int p_port) const
 	return "";
 }
 
+int VisualScriptComposeArray::get_output_value_port_count() const {
+	return 1;
+}
+
+PropertyInfo VisualScriptComposeArray::get_output_value_port_info(int p_idx) const {
+	
+	if (p_idx != 0)
+		return PropertyInfo();
+	
+	PropertyInfo info;
+	info.type = Variant::ARRAY;
+	info.name = "arr_out";
+	return info;
+}
+
 class VisualScriptComposeArrayInstance : public VisualScriptNodeInstance {
 public:
-	VisualScriptComposeArray *node;
-	VisualScriptInstance *instance;
+	int input_count = 0;
 
-	//virtual int get_working_memory_size() const { return 0; }
+	//TODO: Get this properly working
 
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
 
-		Variant va = *p_inputs[0];
-
-		int count = node->get_input_count();
-
-		Array arr;
-		for (int i = 0; i < count; i++) {
-			arr.push_back(*p_inputs[i]);
-		}
-
-		Variant res = Variant(arr);
-
-		*p_outputs[0] = res;
+		*p_outputs[0] = *p_inputs;
 
 		return 0;
 	}
@@ -537,8 +587,7 @@ public:
 VisualScriptNodeInstance *VisualScriptComposeArray::instance(VisualScriptInstance *p_instance) {
 
 	VisualScriptComposeArrayInstance *instance = memnew(VisualScriptComposeArrayInstance);
-	instance->node = this;
-	instance->instance = p_instance;
+	instance->input_count = get_input_value_port_count();
 	return instance;
 }
 
@@ -552,8 +601,8 @@ String VisualScriptComposeArray::get_text() const {
 
 VisualScriptComposeArray::VisualScriptComposeArray() {
 	is_seqeunced = false;
-	add_output_port(Variant::ARRAY, "array");
 	set_active_side(NodeListSide::INPUT_PORTS);
+	set_type_editable(true);
 }
 
 //////////////////////////////////////////

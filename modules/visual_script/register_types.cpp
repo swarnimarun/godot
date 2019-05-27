@@ -79,6 +79,7 @@ void register_visual_script_types() {
 	ClassDB::register_class<VisualScriptLocalVarSet>();
 	ClassDB::register_class<VisualScriptInputAction>();
 	ClassDB::register_class<VisualScriptDeconstruct>();
+	ClassDB::register_class<VisualScriptComposeArray>();
 	ClassDB::register_class<VisualScriptPreload>();
 	ClassDB::register_class<VisualScriptTypeCast>();
 
