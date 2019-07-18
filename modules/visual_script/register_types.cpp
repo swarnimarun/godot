@@ -39,6 +39,7 @@
 #include "visual_script_flow_control.h"
 #include "visual_script_func_nodes.h"
 #include "visual_script_nodes.h"
+#include "visual_script_group_node.h"
 #include "visual_script_yield_nodes.h"
 
 VisualScriptLanguage *visual_script_language = NULL;
@@ -53,6 +54,7 @@ void register_visual_script_types() {
 	ScriptServer::register_language(visual_script_language);
 
 	ClassDB::register_class<VisualScript>();
+	ClassDB::register_class<VisualScriptGroupNode>();
 	ClassDB::register_virtual_class<VisualScriptNode>();
 	ClassDB::register_class<VisualScriptFunctionState>();
 	ClassDB::register_class<VisualScriptFunction>();
