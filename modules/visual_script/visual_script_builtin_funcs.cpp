@@ -104,8 +104,6 @@ const char *VisualScriptBuiltinFunc::func_name[VisualScriptBuiltinFunc::FUNC_MAX
 	"bytes2var",
 	"color_named",
 	"smoothstep",
-	"posmod",
-	"lerp_angle",
 };
 
 VisualScriptBuiltinFunc::BuiltinFunc VisualScriptBuiltinFunc::find_function(const String &p_string) {
@@ -194,7 +192,6 @@ int VisualScriptBuiltinFunc::get_func_argument_count(BuiltinFunc p_func) {
 		case MATH_ATAN2:
 		case MATH_FMOD:
 		case MATH_FPOSMOD:
-		case MATH_POSMOD:
 		case MATH_POW:
 		case MATH_EASE:
 		case MATH_STEPIFY:
@@ -208,7 +205,6 @@ int VisualScriptBuiltinFunc::get_func_argument_count(BuiltinFunc p_func) {
 		case COLORN:
 			return 2;
 		case MATH_LERP:
-		case MATH_LERP_ANGLE:
 		case MATH_INVERSE_LERP:
 		case MATH_SMOOTHSTEP:
 		case MATH_MOVE_TOWARD:
@@ -265,16 +261,7 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 		case MATH_ASIN:
 		case MATH_ACOS:
 		case MATH_ATAN:
-		case MATH_SQRT:
-		case MATH_FLOOR:
-		case MATH_CEIL:
-		case MATH_ROUND:
-		case MATH_ABS:
-		case MATH_SIGN:
-		case MATH_LOG:
-		case MATH_EXP:
-		case MATH_ISNAN:
-		case MATH_ISINF: {
+		case MATH_SQRT: {
 			return PropertyInfo(Variant::REAL, "s");
 		} break;
 		case MATH_ATAN2: {
@@ -284,25 +271,32 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 				return PropertyInfo(Variant::REAL, "x");
 		} break;
 		case MATH_FMOD:
-		case MATH_FPOSMOD:
-		case LOGIC_MAX:
-		case LOGIC_MIN: {
+		case MATH_FPOSMOD: {
 			if (p_idx == 0)
-				return PropertyInfo(Variant::REAL, "a");
+				return PropertyInfo(Variant::REAL, "x");
 			else
-				return PropertyInfo(Variant::REAL, "b");
+				return PropertyInfo(Variant::REAL, "y");
 		} break;
-		case MATH_POSMOD: {
-			if (p_idx == 0)
-				return PropertyInfo(Variant::INT, "a");
-			else
-				return PropertyInfo(Variant::INT, "b");
+		case MATH_FLOOR:
+		case MATH_CEIL:
+		case MATH_ROUND:
+		case MATH_ABS:
+		case MATH_SIGN: {
+			return PropertyInfo(Variant::REAL, "s");
+
 		} break;
+
 		case MATH_POW: {
 			if (p_idx == 0)
-				return PropertyInfo(Variant::REAL, "base");
+				return PropertyInfo(Variant::REAL, "x");
 			else
-				return PropertyInfo(Variant::REAL, "exp");
+				return PropertyInfo(Variant::REAL, "y");
+		} break;
+		case MATH_LOG:
+		case MATH_EXP:
+		case MATH_ISNAN:
+		case MATH_ISINF: {
+			return PropertyInfo(Variant::REAL, "s");
 		} break;
 		case MATH_EASE: {
 			if (p_idx == 0)
@@ -319,10 +313,15 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 			else
 				return PropertyInfo(Variant::REAL, "steps");
 		} break;
-		case MATH_LERP:
-		case MATH_LERP_ANGLE:
-		case MATH_INVERSE_LERP:
-		case MATH_SMOOTHSTEP: {
+		case MATH_LERP: {
+			if (p_idx == 0)
+				return PropertyInfo(Variant::REAL, "from");
+			else if (p_idx == 1)
+				return PropertyInfo(Variant::REAL, "to");
+			else
+				return PropertyInfo(Variant::REAL, "weight");
+		} break;
+		case MATH_INVERSE_LERP: {
 			if (p_idx == 0)
 				return PropertyInfo(Variant::REAL, "from");
 			else if (p_idx == 1)
@@ -342,6 +341,14 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 			else
 				return PropertyInfo(Variant::REAL, "ostop");
 		} break;
+		case MATH_SMOOTHSTEP: {
+			if (p_idx == 0)
+				return PropertyInfo(Variant::REAL, "from");
+			else if (p_idx == 1)
+				return PropertyInfo(Variant::REAL, "to");
+			else
+				return PropertyInfo(Variant::REAL, "weight");
+		} break;
 		case MATH_MOVE_TOWARD: {
 			if (p_idx == 0)
 				return PropertyInfo(Variant::REAL, "from");
@@ -358,8 +365,12 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 			else
 				return PropertyInfo(Variant::REAL, "step");
 		} break;
-		case MATH_RANDOMIZE:
-		case MATH_RAND:
+		case MATH_RANDOMIZE: {
+
+		} break;
+		case MATH_RAND: {
+
+		} break;
 		case MATH_RANDF: {
 
 		} break;
@@ -369,7 +380,9 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 			else
 				return PropertyInfo(Variant::REAL, "to");
 		} break;
-		case MATH_SEED:
+		case MATH_SEED: {
+			return PropertyInfo(Variant::INT, "seed");
+		} break;
 		case MATH_RANDSEED: {
 			return PropertyInfo(Variant::INT, "seed");
 		} break;
@@ -405,7 +418,26 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 			else
 				return PropertyInfo(Variant::INT, "max");
 		} break;
-		case MATH_WRAPF:
+		case MATH_WRAPF: {
+			if (p_idx == 0)
+				return PropertyInfo(Variant::REAL, "value");
+			else if (p_idx == 1)
+				return PropertyInfo(Variant::REAL, "min");
+			else
+				return PropertyInfo(Variant::REAL, "max");
+		} break;
+		case LOGIC_MAX: {
+			if (p_idx == 0)
+				return PropertyInfo(Variant::REAL, "a");
+			else
+				return PropertyInfo(Variant::REAL, "b");
+		} break;
+		case LOGIC_MIN: {
+			if (p_idx == 0)
+				return PropertyInfo(Variant::REAL, "a");
+			else
+				return PropertyInfo(Variant::REAL, "b");
+		} break;
 		case LOGIC_CLAMP: {
 			if (p_idx == 0)
 				return PropertyInfo(Variant::REAL, "value");
@@ -418,15 +450,20 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 			return PropertyInfo(Variant::INT, "value");
 		} break;
 		case OBJ_WEAKREF: {
+
 			return PropertyInfo(Variant::OBJECT, "source");
+
 		} break;
 		case FUNC_FUNCREF: {
+
 			if (p_idx == 0)
 				return PropertyInfo(Variant::OBJECT, "instance");
 			else
 				return PropertyInfo(Variant::STRING, "funcname");
+
 		} break;
 		case TYPE_CONVERT: {
+
 			if (p_idx == 0)
 				return PropertyInfo(Variant::NIL, "what");
 			else
@@ -434,24 +471,45 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 		} break;
 		case TYPE_OF: {
 			return PropertyInfo(Variant::NIL, "what");
+
 		} break;
 		case TYPE_EXISTS: {
+
 			return PropertyInfo(Variant::STRING, "type");
+
 		} break;
 		case TEXT_CHAR: {
+
 			return PropertyInfo(Variant::INT, "ascii");
+
 		} break;
-		case TEXT_STR:
-		case TEXT_PRINT:
-		case TEXT_PRINTERR:
-		case TEXT_PRINTRAW: {
+		case TEXT_STR: {
+
 			return PropertyInfo(Variant::NIL, "value");
+
+		} break;
+		case TEXT_PRINT: {
+
+			return PropertyInfo(Variant::NIL, "value");
+
+		} break;
+		case TEXT_PRINTERR: {
+			return PropertyInfo(Variant::NIL, "value");
+
+		} break;
+		case TEXT_PRINTRAW: {
+
+			return PropertyInfo(Variant::NIL, "value");
+
+		} break;
+		case VAR_TO_STR: {
+			return PropertyInfo(Variant::NIL, "var");
+
 		} break;
 		case STR_TO_VAR: {
 
 			return PropertyInfo(Variant::STRING, "string");
 		} break;
-		case VAR_TO_STR:
 		case VAR_TO_BYTES: {
 			if (p_idx == 0)
 				return PropertyInfo(Variant::NIL, "var");
@@ -467,10 +525,12 @@ PropertyInfo VisualScriptBuiltinFunc::get_input_value_port_info(int p_idx) const
 				return PropertyInfo(Variant::BOOL, "allow_objects");
 		} break;
 		case COLORN: {
+
 			if (p_idx == 0)
 				return PropertyInfo(Variant::STRING, "name");
 			else
 				return PropertyInfo(Variant::REAL, "alpha");
+
 		} break;
 		case FUNC_MAX: {
 		}
@@ -501,7 +561,6 @@ PropertyInfo VisualScriptBuiltinFunc::get_output_value_port_info(int p_idx) cons
 		case MATH_CEIL: {
 			t = Variant::REAL;
 		} break;
-		case MATH_POSMOD:
 		case MATH_ROUND: {
 			t = Variant::INT;
 		} break;
@@ -528,7 +587,6 @@ PropertyInfo VisualScriptBuiltinFunc::get_output_value_port_info(int p_idx) cons
 		} break;
 		case MATH_STEPIFY:
 		case MATH_LERP:
-		case MATH_LERP_ANGLE:
 		case MATH_INVERSE_LERP:
 		case MATH_RANGE_LERP:
 		case MATH_SMOOTHSTEP:
@@ -748,12 +806,6 @@ void VisualScriptBuiltinFunc::exec_func(BuiltinFunc p_func, const Variant **p_in
 			VALIDATE_ARG_NUM(1);
 			*r_return = Math::fposmod((double)*p_inputs[0], (double)*p_inputs[1]);
 		} break;
-		case VisualScriptBuiltinFunc::MATH_POSMOD: {
-
-			VALIDATE_ARG_NUM(0);
-			VALIDATE_ARG_NUM(1);
-			*r_return = Math::posmod((int)*p_inputs[0], (int)*p_inputs[1]);
-		} break;
 		case VisualScriptBuiltinFunc::MATH_FLOOR: {
 
 			VALIDATE_ARG_NUM(0);
@@ -852,13 +904,6 @@ void VisualScriptBuiltinFunc::exec_func(BuiltinFunc p_func, const Variant **p_in
 			VALIDATE_ARG_NUM(1);
 			VALIDATE_ARG_NUM(2);
 			*r_return = Math::lerp((double)*p_inputs[0], (double)*p_inputs[1], (double)*p_inputs[2]);
-		} break;
-		case VisualScriptBuiltinFunc::MATH_LERP_ANGLE: {
-
-			VALIDATE_ARG_NUM(0);
-			VALIDATE_ARG_NUM(1);
-			VALIDATE_ARG_NUM(2);
-			*r_return = Math::lerp_angle((double)*p_inputs[0], (double)*p_inputs[1], (double)*p_inputs[2]);
 		} break;
 		case VisualScriptBuiltinFunc::MATH_INVERSE_LERP: {
 
@@ -1320,7 +1365,6 @@ void VisualScriptBuiltinFunc::_bind_methods() {
 	BIND_ENUM_CONSTANT(MATH_SQRT);
 	BIND_ENUM_CONSTANT(MATH_FMOD);
 	BIND_ENUM_CONSTANT(MATH_FPOSMOD);
-	BIND_ENUM_CONSTANT(MATH_POSMOD);
 	BIND_ENUM_CONSTANT(MATH_FLOOR);
 	BIND_ENUM_CONSTANT(MATH_CEIL);
 	BIND_ENUM_CONSTANT(MATH_ROUND);
@@ -1373,7 +1417,6 @@ void VisualScriptBuiltinFunc::_bind_methods() {
 	BIND_ENUM_CONSTANT(BYTES_TO_VAR);
 	BIND_ENUM_CONSTANT(COLORN);
 	BIND_ENUM_CONSTANT(MATH_SMOOTHSTEP);
-	BIND_ENUM_CONSTANT(MATH_LERP_ANGLE);
 	BIND_ENUM_CONSTANT(FUNC_MAX);
 }
 
@@ -1411,7 +1454,6 @@ void register_visual_script_builtin_func_node() {
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/sqrt", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_SQRT>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/fmod", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_FMOD>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/fposmod", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_FPOSMOD>);
-	VisualScriptLanguage::singleton->add_register_func("functions/built_in/posmod", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_POSMOD>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/floor", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_FLOOR>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/ceil", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_CEIL>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/round", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_ROUND>);
@@ -1427,7 +1469,6 @@ void register_visual_script_builtin_func_node() {
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/decimals", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_DECIMALS>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/stepify", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_STEPIFY>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/lerp", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_LERP>);
-	VisualScriptLanguage::singleton->add_register_func("functions/built_in/lerp_angle", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_LERP_ANGLE>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/inverse_lerp", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_INVERSE_LERP>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/range_lerp", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_RANGE_LERP>);
 	VisualScriptLanguage::singleton->add_register_func("functions/built_in/smoothstep", create_builtin_func_node<VisualScriptBuiltinFunc::MATH_SMOOTHSTEP>);

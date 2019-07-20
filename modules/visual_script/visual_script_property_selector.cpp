@@ -198,13 +198,10 @@ void VisualScriptPropertySelector::_update_search() {
 
 				Object *obj = ObjectDB::get_instance(script);
 				if (Object::cast_to<Script>(obj)) {
-					methods.push_back(MethodInfo("*Script Methods"));
 					Object::cast_to<Script>(obj)->get_script_method_list(&methods);
-
-				} else {
-					methods.push_back(MethodInfo("*" + String(E->get())));
-					ClassDB::get_method_list(E->get(), &methods, true, true);
 				}
+
+				ClassDB::get_method_list(E->get(), &methods, true, true);
 			}
 		}
 		for (List<MethodInfo>::Element *M = methods.front(); M; M = M->next()) {
@@ -332,7 +329,7 @@ void VisualScriptPropertySelector::get_visual_node_names(const String &root_filt
 	VisualScriptLanguage::singleton->get_registered_node_names(&fnodes);
 
 	for (List<String>::Element *E = fnodes.front(); E; E = E->next()) {
-		if (!E->get().begins_with(root_filter)) {
+		if (search_box->get_text() == String() || !E->get().begins_with(root_filter)) {
 			continue;
 		}
 		Vector<String> path = E->get().split("/");
@@ -347,26 +344,37 @@ void VisualScriptPropertySelector::get_visual_node_names(const String &root_filt
 			continue;
 		}
 
-		if (search_box->get_text() != String() && E->get().findn(search_box->get_text()) == -1) {
+		Vector<String> tx_filters = search_box->get_text().split(" ");
+		for (int i = 0; i < tx_filters.size(); i++) {
+			if (tx_filters[i] != String() && E->get().findn(tx_filters[i]) == -1) {
+				is_filter = true;
+				break;
+			}
+		}
+		if (is_filter) {
 			continue;
 		}
 		TreeItem *item = search_options->create_item(root);
-		VisualScriptOperator *vnode_operator = Object::cast_to<VisualScriptOperator>(*VisualScriptLanguage::singleton->create_node_from_name(E->get()));
+		Ref<VisualScriptNode> vnode = VisualScriptLanguage::singleton->create_node_from_name(E->get());
+		Ref<VisualScriptOperator> vnode_operator = vnode;
 		String type_name;
-		if (vnode_operator != NULL) {
+		if (vnode_operator.is_valid()) {
 			String type;
 			if (path.size() >= 2) {
 				type = path[1];
 			}
 			type_name = type.capitalize() + " ";
 		}
-		VisualScriptFunctionCall *vnode_function_call = Object::cast_to<VisualScriptFunctionCall>(*VisualScriptLanguage::singleton->create_node_from_name(E->get()));
-		if (vnode_function_call != NULL) {
+		Ref<VisualScriptFunctionCall> vnode_function_call = vnode;
+		if (vnode_function_call.is_valid()) {
 			String basic_type = Variant::get_type_name(vnode_function_call->get_basic_type());
 			type_name = basic_type.capitalize() + " ";
 		}
-
-		Vector<String> desc = path[path.size() - 1].replace("(", "( ").replace(")", " )").replace(",", ", ").split(" ");
+		Ref<VisualScriptConstructor> vnode_constructor = vnode;
+		if (vnode_constructor.is_valid()) {
+			type_name = "Construct ";
+		}
+		Vector<String> desc = path[path.size() - 1].replace("(", " ").replace(")", " ").replace(",", " ").split(" ");
 		for (int i = 0; i < desc.size(); i++) {
 			desc.write[i] = desc[i].capitalize();
 			if (desc[i].ends_with(",")) {
@@ -405,7 +413,7 @@ void VisualScriptPropertySelector::_item_selected() {
 	String name = item->get_metadata(0);
 
 	String class_type;
-	if (type != Variant::NIL) {
+	if (type) {
 		class_type = Variant::get_type_name(type);
 
 	} else {
@@ -502,7 +510,7 @@ void VisualScriptPropertySelector::_notification(int p_what) {
 	}
 }
 
-void VisualScriptPropertySelector::select_method_from_base_type(const String &p_base, const String &p_current, const bool p_virtuals_only, const bool p_connecting) {
+void VisualScriptPropertySelector::select_method_from_base_type(const String &p_base, const String &p_current, const bool p_virtuals_only, const bool p_connecting, bool clear_text) {
 
 	base_type = p_base;
 	selected = p_current;
@@ -513,7 +521,8 @@ void VisualScriptPropertySelector::select_method_from_base_type(const String &p_
 	virtuals_only = p_virtuals_only;
 
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	connecting = p_connecting;
 
@@ -524,7 +533,7 @@ void VisualScriptPropertySelector::set_type_filter(const Vector<Variant::Type> &
 	type_filter = p_type_filter;
 }
 
-void VisualScriptPropertySelector::select_from_base_type(const String &p_base, const String &p_current, bool p_virtuals_only, bool p_seq_connect, const bool p_connecting) {
+void VisualScriptPropertySelector::select_from_base_type(const String &p_base, const String &p_current, bool p_virtuals_only, bool p_seq_connect, const bool p_connecting, bool clear_text) {
 
 	base_type = p_base;
 	selected = p_current;
@@ -536,7 +545,8 @@ void VisualScriptPropertySelector::select_from_base_type(const String &p_base, c
 	virtuals_only = p_virtuals_only;
 
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	seq_connect = p_seq_connect;
 	connecting = p_connecting;
@@ -544,7 +554,7 @@ void VisualScriptPropertySelector::select_from_base_type(const String &p_base, c
 	_update_search();
 }
 
-void VisualScriptPropertySelector::select_from_script(const Ref<Script> &p_script, const String &p_current, const bool p_connecting) {
+void VisualScriptPropertySelector::select_from_script(const Ref<Script> &p_script, const String &p_current, const bool p_connecting, bool clear_text) {
 	ERR_FAIL_COND(p_script.is_null());
 
 	base_type = p_script->get_instance_base_type();
@@ -557,7 +567,8 @@ void VisualScriptPropertySelector::select_from_script(const Ref<Script> &p_scrip
 	virtuals_only = false;
 
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	seq_connect = false;
 	connecting = p_connecting;
@@ -565,7 +576,7 @@ void VisualScriptPropertySelector::select_from_script(const Ref<Script> &p_scrip
 	_update_search();
 }
 
-void VisualScriptPropertySelector::select_from_basic_type(Variant::Type p_type, const String &p_current, const bool p_connecting) {
+void VisualScriptPropertySelector::select_from_basic_type(Variant::Type p_type, const String &p_current, const bool p_connecting, bool clear_text) {
 	ERR_FAIL_COND(p_type == Variant::NIL);
 	base_type = "";
 	selected = p_current;
@@ -577,7 +588,8 @@ void VisualScriptPropertySelector::select_from_basic_type(Variant::Type p_type, 
 	virtuals_only = false;
 
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	seq_connect = false;
 	connecting = p_connecting;
@@ -585,7 +597,7 @@ void VisualScriptPropertySelector::select_from_basic_type(Variant::Type p_type, 
 	_update_search();
 }
 
-void VisualScriptPropertySelector::select_from_action(const String &p_type, const String &p_current, const bool p_connecting) {
+void VisualScriptPropertySelector::select_from_action(const String &p_type, const String &p_current, const bool p_connecting, bool clear_text) {
 	base_type = p_type;
 	selected = p_current;
 	type = Variant::NIL;
@@ -596,7 +608,8 @@ void VisualScriptPropertySelector::select_from_action(const String &p_type, cons
 	virtuals_only = false;
 
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	seq_connect = true;
 	connecting = p_connecting;
@@ -604,8 +617,8 @@ void VisualScriptPropertySelector::select_from_action(const String &p_type, cons
 	_update_search();
 }
 
-void VisualScriptPropertySelector::select_from_instance(Object *p_instance, const String &p_current, const bool p_connecting) {
-	base_type = "";
+void VisualScriptPropertySelector::select_from_instance(Object *p_instance, const String &p_current, const bool p_connecting, const String &p_basetype, bool clear_text) {
+	base_type = p_basetype;
 	selected = p_current;
 	type = Variant::NIL;
 	script = 0;
@@ -615,7 +628,8 @@ void VisualScriptPropertySelector::select_from_instance(Object *p_instance, cons
 	virtuals_only = false;
 
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	seq_connect = false;
 	connecting = p_connecting;
@@ -623,7 +637,7 @@ void VisualScriptPropertySelector::select_from_instance(Object *p_instance, cons
 	_update_search();
 }
 
-void VisualScriptPropertySelector::select_from_visual_script(const String &p_base, const bool p_connecting) {
+void VisualScriptPropertySelector::select_from_visual_script(const String &p_base, const bool p_connecting, bool clear_text) {
 	base_type = p_base;
 	selected = "";
 	type = Variant::NIL;
@@ -633,7 +647,8 @@ void VisualScriptPropertySelector::select_from_visual_script(const String &p_bas
 	instance = NULL;
 	virtuals_only = false;
 	show_window(.5f);
-	search_box->set_text("");
+	if (clear_text)
+		search_box->set_text("");
 	search_box->grab_focus();
 	connecting = p_connecting;
 
@@ -643,8 +658,8 @@ void VisualScriptPropertySelector::select_from_visual_script(const String &p_bas
 void VisualScriptPropertySelector::show_window(float p_screen_ratio) {
 	Rect2 rect;
 	Point2 window_size = get_viewport_rect().size;
-	rect.size = (window_size * p_screen_ratio).floor();
-	rect.size.x = rect.size.x / 1.25f;
+	rect.size = (window_size * p_screen_ratio * 0.7f).floor();
+	rect.size.x = rect.size.x / 2.0f;
 	rect.position = ((window_size - rect.size) / 2.0f).floor();
 	popup(rect);
 }

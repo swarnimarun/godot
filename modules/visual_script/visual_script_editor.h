@@ -59,6 +59,8 @@ class VisualScriptEditor : public ScriptEditorBase {
 		EDIT_COPY_NODES,
 		EDIT_CUT_NODES,
 		EDIT_PASTE_NODES,
+		EDIT_CREATE_FUNCTION,
+		REFRESH_GRAPH
 	};
 
 	enum PortAction {
@@ -88,9 +90,6 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	GraphEdit *graph;
 
-	LineEdit *node_filter;
-	TextureRect *node_filter_icon;
-
 	VisualScriptEditorSignalEdit *signal_editor;
 
 	AcceptDialog *edit_signal_dialog;
@@ -110,7 +109,6 @@ class VisualScriptEditor : public ScriptEditorBase {
 	UndoRedo *undo_redo;
 
 	Tree *members;
-	Tree *nodes;
 
 	Label *hint_text;
 	Timer *hint_text_timer;
@@ -133,6 +131,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	HashMap<StringName, Ref<StyleBox> > node_styles;
 	StringName edited_func;
+	StringName default_func;
 
 	void _update_graph_connections();
 	void _update_graph(int p_only_id = -1);
@@ -165,9 +164,13 @@ class VisualScriptEditor : public ScriptEditorBase {
 	int port_action_output;
 	Vector2 port_action_pos;
 	int port_action_new_node;
-	void _port_action_menu(int p_option);
 
-	void new_node(Ref<VisualScriptNode> vnode, Vector2 ofs);
+	bool saved_pos_dirty;
+	Vector2 saved_position;
+
+	Vector2 mouse_up_position;
+
+	void _port_action_menu(int p_option, const StringName &func);
 
 	void connect_data(Ref<VisualScriptNode> vnode_old, Ref<VisualScriptNode> vnode, int new_id);
 
@@ -175,13 +178,13 @@ class VisualScriptEditor : public ScriptEditorBase {
 	void connect_seq(Ref<VisualScriptNode> vnode_old, Ref<VisualScriptNode> vnode_new, int new_id);
 
 	void _cancel_connect_node();
-	void _create_new_node(const String &p_text, const String &p_category, const Vector2 &p_point);
+	int _create_new_node_from_name(const String &p_text, const Vector2 &p_point, const StringName &p_func = StringName());
 	void _selected_new_virtual_method(const String &p_text, const String &p_category, const bool p_connecting);
 
 	int error_line;
 
 	void _node_selected(Node *p_node);
-	void _center_on_node(int p_id);
+	void _center_on_node(const StringName &func, int p_id);
 
 	void _node_filter_changed(const String &p_text);
 	void _change_base_type_callback();
@@ -191,7 +194,9 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	void _begin_node_move();
 	void _end_node_move();
-	void _move_node(String func, int p_id, const Vector2 &p_to);
+	void _move_node(StringName func, int p_id, const Vector2 &p_to);
+
+	void _get_ends(int node, const List<VisualScript::SequenceConnection> &seqs, const Set<int> &selected, Set<int> &end_nodes);
 
 	void _node_moved(Vector2 p_from, Vector2 p_to, int p_id);
 	void _remove_node(int p_id);
@@ -200,21 +205,36 @@ class VisualScriptEditor : public ScriptEditorBase {
 	void _graph_connect_to_empty(const String &p_from, int p_from_slot, const Vector2 &p_release_pos);
 
 	void _node_ports_changed(const String &p_func, int p_id);
-	void _available_node_doubleclicked();
+	void _node_create();
 
 	void _update_available_nodes();
 
 	void _member_button(Object *p_item, int p_column, int p_button);
 
 	void _expression_text_changed(const String &p_text, int p_id);
+	void _add_input_port(int p_id);
+	void _remove_input_port(int p_id, int p_port);
+	void _change_input_port_type(int p_select, int p_id, int p_port);
+	void _update_node_size(int p_id);
+	void _port_name_focus_out(const Node *name_box, int p_id, int p_port);
 
-	String revert_on_drag;
+	Vector2 _get_available_pos(bool centered = true, Vector2 pos = Vector2()) const;
+	StringName _get_function_of_node(int p_id) const;
+
+	void _move_nodes(const StringName &func_from, const StringName &func_to, int p_id);
+	bool node_has_sequence_connections(const StringName &func, int p_id);
+
+	void _generic_search(String p_base_type = "", Vector2 pos = Vector2());
 
 	void _input(const Ref<InputEvent> &p_event);
-
-	void _generic_search(String p_base_type = "");
-
+	void _graph_gui_input(const Ref<InputEvent> &p_event);
 	void _members_gui_input(const Ref<InputEvent> &p_event);
+
+	void _create_function();
+	void _add_node_dialog();
+	void _node_item_selected();
+	void _node_item_unselected();
+
 	void _on_nodes_delete();
 	void _on_nodes_duplicate();
 
@@ -224,6 +244,10 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	int editing_id;
 	int editing_input;
+
+	bool can_swap;
+	int data_disconnect_node;
+	int data_disconnect_port;
 
 	void _default_value_changed();
 	void _default_value_edited(Node *p_button, int p_id, int p_input_port);

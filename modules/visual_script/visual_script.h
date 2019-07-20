@@ -239,6 +239,7 @@ private:
 		PropertyInfo info;
 		Variant default_value;
 		bool _export;
+		// add getter & setter options here
 	};
 
 	Map<StringName, Function> functions;
@@ -265,6 +266,7 @@ protected:
 	static void _bind_methods();
 
 public:
+	StringName get_default_func() const;
 	void add_function(const StringName &p_name);
 	bool has_function(const StringName &p_name) const;
 	void remove_function(const StringName &p_name);
