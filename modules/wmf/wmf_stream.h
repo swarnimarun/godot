@@ -34,92 +34,101 @@
 #include "core/io/resource_loader.h"
 #include "scene/resources/video_stream.h"
 
+#include <windows.h>
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#include <stdio.h>
+#include <mferror.h>
 
 class VideoStreamPlaybackWmf : public VideoStreamPlayback {
 
 	GDCLASS(VideoStreamPlaybackWmf, VideoStreamPlayback);
 
-// 	String file_name;
-// 	int audio_track;
+	String file_name;
+	int audio_track; // not going to be decoding audio track for now
 
-// 	WebMDemuxer *webm;
-// 	VPXDecoder *video;
-// 	OpusVorbisDecoder *audio;
+    FileAccess *file;
 
-// 	WebMFrame **video_frames, *audio_frame;
-// 	int video_frames_pos, video_frames_capacity;
+	IMFSourceReader *p_reader;
+	IMFByteStream *byte_stream;
 
-// 	int num_decoded_samples, samples_offset;
-// 	AudioMixCallback mix_callback;
-// 	void *mix_udata;
+	// WebMDemuxer *webm;
+	// VPXDecoder *video;
+	// OpusVorbisDecoder *audio;
 
-// 	bool playing, paused;
-// 	double delay_compensation;
-// 	double time, video_frame_delay, video_pos;
+	// WebMFrame **video_frames, *audio_frame;
+	int video_frames_pos, video_frames_capacity;
 
-// 	PoolVector<uint8_t> frame_data;
-// 	Ref<ImageTexture> texture;
+	// int num_decoded_samples, samples_offset;
+	// AudioMixCallback mix_callback;
+	// void *mix_udata;
+
+	bool playing, paused;
+	double delay_compensation;
+	double time, video_frame_delay, video_pos;
+
+	PoolVector<uint8_t> frame_data;
+	Ref<ImageTexture> texture;
 
 // 	float *pcm;
 
-// public:
-// 	VideoStreamPlaybackWebm();
-// 	~VideoStreamPlaybackWebm();
+public:
+	VideoStreamPlaybackWmf();
+	~VideoStreamPlaybackWmf();
 
-// 	bool open_file(const String &p_file);
+	bool open_file(const String &p_file);
 
-// 	virtual void stop();
-// 	virtual void play();
+	virtual void stop();
+	virtual void play();
 
-// 	virtual bool is_playing() const;
+	virtual bool is_playing() const;
 
-// 	virtual void set_paused(bool p_paused);
-// 	virtual bool is_paused() const;
+	virtual void set_paused(bool p_paused);
+	virtual bool is_paused() const;
 
-// 	virtual void set_loop(bool p_enable);
-// 	virtual bool has_loop() const;
+	virtual void set_loop(bool p_enable);
+	virtual bool has_loop() const;
 
-// 	virtual float get_length() const;
+	virtual float get_length() const;
 
-// 	virtual float get_playback_position() const;
-// 	virtual void seek(float p_time);
+	virtual float get_playback_position() const;
+	virtual void seek(float p_time);
 
-// 	virtual void set_audio_track(int p_idx);
+	virtual void set_audio_track(int p_idx);
 
-// 	virtual Ref<Texture> get_texture();
-// 	virtual void update(float p_delta);
+	virtual Ref<Texture> get_texture();
+	virtual void update(float p_delta);
 
-// 	virtual void set_mix_callback(AudioMixCallback p_callback, void *p_userdata);
-// 	virtual int get_channels() const;
-// 	virtual int get_mix_rate() const;
+	virtual void set_mix_callback(AudioMixCallback p_callback, void *p_userdata);
+	virtual int get_channels() const;
+	virtual int get_mix_rate() const;
 
-// private:
-// 	inline bool has_enough_video_frames() const;
-// 	bool should_process(WebMFrame &video_frame);
+private:
+	inline bool has_enough_video_frames() const { return false; }
+	bool should_process(WebMFrame &video_frame) { return false; }
 
-// 	void delete_pointers();
+	void delete_pointers() {} // this is to clean stuff up
 };
-
-/**/
 
 class VideoStreamWmf : public VideoStream {
 
 	GDCLASS(VideoStreamWmf, VideoStream);
 
-// 	String file;
-// 	int audio_track;
+	String file;
+	int audio_track;
 
-// protected:
-// 	static void _bind_methods();
+protected:
+	static void _bind_methods();
 
-// public:
-// 	VideoStreamWebm();
+public:
+	VideoStreamWmf();
 
-// 	virtual Ref<VideoStreamPlayback> instance_playback();
+	virtual Ref<VideoStreamPlayback> instance_playback();
 
-// 	virtual void set_file(const String &p_file);
-// 	String get_file();
-// 	virtual void set_audio_track(int p_track);
+	virtual void set_file(const String &p_file);
+	String get_file();
+	virtual void set_audio_track(int p_track);
 };
 
 class ResourceFormatLoaderWmf : public ResourceFormatLoader {
