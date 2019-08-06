@@ -48,7 +48,7 @@ class VideoStreamPlaybackWmf : public VideoStreamPlayback {
 	String file_name;
 	int audio_track; // not going to be decoding audio track for now
 
-    FileAccess *file;
+    // FileAccess *file;
 
 	IMFSourceReader *p_reader;
 	IMFByteStream *byte_stream;
@@ -71,7 +71,7 @@ class VideoStreamPlaybackWmf : public VideoStreamPlayback {
 	PoolVector<uint8_t> frame_data;
 	Ref<ImageTexture> texture;
 
-// 	float *pcm;
+	float *pcm; // audio
 
 public:
 	VideoStreamPlaybackWmf();
@@ -105,10 +105,11 @@ public:
 	virtual int get_mix_rate() const;
 
 private:
-	inline bool has_enough_video_frames() const { return false; }
-	bool should_process(WebMFrame &video_frame) { return false; }
+	// TODO: decide if we even need this
+	inline bool has_enough_video_frames() const { return false; }  // check to see if the video frames are proper
+	bool should_process(Ref<Image> &video_frame) { return false; } // this is just to process each from
 
-	void delete_pointers() {} // this is to clean stuff up
+	void delete_pointers() {} // TODO: put some actual code \\ this is to clean stuff up
 };
 
 class VideoStreamWmf : public VideoStream {

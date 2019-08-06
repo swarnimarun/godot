@@ -39,7 +39,7 @@ void register_wmf_types() {
 	resource_loader_wmf.instance();
 	ResourceLoader::add_resource_format_loader(resource_loader_wmf, true);
 
-	ClassDB::register_class<VideoStreamWebm>();
+	ClassDB::register_class<VideoStreamWmf>();
 }
 
 void unregister_wmf_types() {
