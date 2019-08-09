@@ -109,7 +109,7 @@ private:
 	inline bool has_enough_video_frames() const { return false; }  // check to see if the video frames are proper
 	bool should_process(Ref<Image> &video_frame) { return false; } // this is just to process each from
 
-	void delete_pointers() {} // TODO: put some actual code \\ this is to clean stuff up
+	void delete_pointers();
 };
 
 class VideoStreamWmf : public VideoStream {

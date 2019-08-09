@@ -7,6 +7,6 @@ env_wmf = env_modules.Clone()
 
 env_wmf.add_source_files(env.modules_sources, "*.cpp")
 
-MSLIBS = ['mfuuid', 'evr', 'mfplat', 'mf', 'mfreadwrite']
+# MSLIBS = ['mf', 'mfplat', 'mfreadwrite', 'mfuuid', 'evr']
 
-env_wmf.Append(LINKFLAGS=[p + env_wmf["LIBSUFFIX"] for p in MSLIBS])
+# env_wmf.Append(LINKFLAGS=[p + env_wmf["LIBSUFFIX"] for p in MSLIBS])
