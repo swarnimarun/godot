@@ -13,6 +13,73 @@ void SafeRelease(T **ptr) {
     return;
 }
 
+// Write a wrapper for the SourceReader (Might be only used for creating a simplified implementations of what's needed)
+class MediaSource {
+    IMFSourceReader *reader;
+    IMFByteStream *byte_stream; // this is going to be the stream that reads the file
+    // this will allow for lazily loading from the file
+    IMFSample *sample; // this is basically is a video frame with additional data
+    // you also need audio decoding and an audio sample as well for it
+    // each sample only holds data of the specific stream
+
+    // helper method to get the flags of the media
+    HRESULT GetSourceFlags(ULONG *pulFlags) {
+        ULONG flags = 0;
+
+        PROPVARIANT var;
+        PropVariantInit(&var);
+
+        HRESULT hr = reader->GetPresentationAttribute(
+            MF_SOURCE_READER_MEDIASOURCE, 
+            MF_SOURCE_READER_MEDIASOURCE_CHARACTERISTICS, 
+            &var);
+
+        if (SUCCEEDED(hr)) {
+            hr = PropVariantToUInt32(var, &flags);
+        }
+        if (SUCCEEDED(hr)) {
+            *pulFlags = flags;
+        }
+
+        PropVariantClear(&var);
+        return hr;
+    }
+
+public:
+    // check to see if the media is seekable
+    BOOL SourceCanSeek() {
+        BOOL bCanSeek = FALSE;
+        ULONG flags;
+        if (SUCCEEDED(GetSourceFlags(reader, &flags))) {
+            bCanSeek = ((flags & MFMEDIASOURCE_CAN_SEEK) == MFMEDIASOURCE_CAN_SEEK);
+        }
+        return bCanSeek;
+    }
+
+    HRESULT SetPosition(const LONGLONG& hnsPosition) {
+        PROPVARIANT var;
+        HRESULT hr = InitPropVariantFromInt64(hnsPosition, &var);
+        if (SUCCEEDED(hr)) {
+            // GUID_NULL is for 100 nanosec unit
+            hr = reader->SetCurrentPosition(GUID_NULL, var);
+            PropVariantClear(&var);
+        }
+        return hr;
+    }
+
+    // method to get the source reader duration in 100 nanosec units
+    HRESULT GetDuration(LONGLONG *phnsDuration) {
+        PROPVARIANT var;
+        HRESULT hr = reader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, 
+            MF_PD_DURATION, &var);
+        if (SUCCEEDED(hr)) {
+            hr = PropVariantToInt64(var, phnsDuration);
+            PropVariantClear(&var);
+        }
+        return hr;
+    }
+};
+
 ////////////////////////
 /////Video_PLayback/////
 ////////////////////////
@@ -34,7 +101,7 @@ VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
 
     if (SUCCEEDED(hr)) {
         // Create the source reader to read the input file.
-        // hr = MFCreateSourceReaderFromURL(wszSourceFile, NULL, &pReader);
+        // hr = MFCreateSourceReaderFromURL(wszSourceFile, NULL, &reader);
         if (FAILED(hr)) {
             ERR_PRINT("Couldn't read from the source file properly.");
         }
@@ -56,7 +123,7 @@ void VideoStreamPlaybackWmf::stop() {
     if (playing) {
         // reset and clean stuff up
 
-		delete_pointers();
+		// delete_pointers();
 
 		// pcm = NULL;
 
@@ -128,6 +195,135 @@ Ref<Texture> VideoStreamPlaybackWmf::get_texture() {
 
 void VideoStreamPlaybackWmf::update(float p_delta) {
     // update the frame :D
+    if ((!playing || paused) || !video)
+		return;
+
+	time += p_delta;
+
+	if (time < video_pos) {
+		return;
+	}
+
+	bool audio_buffer_full = false;
+
+	if (samples_offset > -1) {
+
+		//Mix remaining samples
+		const int to_read = num_decoded_samples - samples_offset;
+		const int mixed = mix_callback(mix_udata, pcm + samples_offset * webm->getChannels(), to_read);
+		if (mixed != to_read) {
+
+			samples_offset += mixed;
+			audio_buffer_full = true;
+		} else {
+
+			samples_offset = -1;
+		}
+	}
+
+	const bool hasAudio = (audio && mix_callback);
+	while ((hasAudio && !audio_buffer_full && !has_enough_video_frames()) ||
+			(!hasAudio && video_frames_pos == 0)) {
+
+		if (hasAudio && !audio_buffer_full && audio_frame->isValid() &&
+				audio->getPCMF(*audio_frame, pcm, num_decoded_samples) && num_decoded_samples > 0) {
+
+			const int mixed = mix_callback(mix_udata, pcm, num_decoded_samples);
+
+			if (mixed != num_decoded_samples) {
+				samples_offset = mixed;
+				audio_buffer_full = true;
+			}
+		}
+
+		WebMFrame *video_frame;
+		if (video_frames_pos >= video_frames_capacity) {
+
+			WebMFrame **video_frames_new = (WebMFrame **)memrealloc(video_frames, ++video_frames_capacity * sizeof(void *));
+			ERR_FAIL_COND(!video_frames_new); //Out of memory
+			(video_frames = video_frames_new)[video_frames_capacity - 1] = memnew(WebMFrame);
+		}
+		video_frame = video_frames[video_frames_pos];
+
+		if (!webm->readFrame(video_frame, audio_frame)) //This will invalidate frames
+			break; //Can't demux, EOS?
+
+		if (video_frame->isValid())
+			++video_frames_pos;
+	};
+
+	bool video_frame_done = false;
+	while (video_frames_pos > 0 && !video_frame_done) {
+
+		WebMFrame *video_frame = video_frames[0];
+
+		// It seems VPXDecoder::decode has to be executed even though we might skip this frame
+		if (video->decode(*video_frame)) {
+
+			VPXDecoder::IMAGE_ERROR err;
+			VPXDecoder::Image image;
+
+			if (should_process(*video_frame)) {
+
+				if ((err = video->getImage(image)) != VPXDecoder::NO_FRAME) {
+
+					if (err == VPXDecoder::NO_ERROR && image.w == webm->getWidth() && image.h == webm->getHeight()) {
+
+						PoolVector<uint8_t>::Write w = frame_data.write();
+						bool converted = false;
+
+						if (image.chromaShiftW == 0 && image.chromaShiftH == 0 && image.cs == VPX_CS_SRGB) {
+
+							uint8_t *wp = w.ptr();
+							unsigned char *rRow = image.planes[2];
+							unsigned char *gRow = image.planes[0];
+							unsigned char *bRow = image.planes[1];
+							for (int i = 0; i < image.h; i++) {
+								for (int j = 0; j < image.w; j++) {
+									*wp++ = rRow[j];
+									*wp++ = gRow[j];
+									*wp++ = bRow[j];
+									*wp++ = 255;
+								}
+								rRow += image.linesize[2];
+								gRow += image.linesize[0];
+								bRow += image.linesize[1];
+							}
+							converted = true;
+						} else if (image.chromaShiftW == 1 && image.chromaShiftH == 1) {
+
+							yuv420_2_rgb8888(w.ptr(), image.planes[0], image.planes[1], image.planes[2], image.w, image.h, image.linesize[0], image.linesize[1], image.w << 2);
+							// 								libyuv::I420ToARGB(image.planes[0], image.linesize[0], image.planes[2], image.linesize[2], image.planes[1], image.linesize[1], w.ptr(), image.w << 2, image.w, image.h);
+							converted = true;
+						} else if (image.chromaShiftW == 1 && image.chromaShiftH == 0) {
+
+							yuv422_2_rgb8888(w.ptr(), image.planes[0], image.planes[1], image.planes[2], image.w, image.h, image.linesize[0], image.linesize[1], image.w << 2);
+							// 								libyuv::I422ToARGB(image.planes[0], image.linesize[0], image.planes[2], image.linesize[2], image.planes[1], image.linesize[1], w.ptr(), image.w << 2, image.w, image.h);
+							converted = true;
+						} else if (image.chromaShiftW == 0 && image.chromaShiftH == 0) {
+
+							yuv444_2_rgb8888(w.ptr(), image.planes[0], image.planes[1], image.planes[2], image.w, image.h, image.linesize[0], image.linesize[1], image.w << 2);
+							// 								libyuv::I444ToARGB(image.planes[0], image.linesize[0], image.planes[2], image.linesize[2], image.planes[1], image.linesize[1], w.ptr(), image.w << 2, image.w, image.h);
+							converted = true;
+						}
+
+						if (converted) {
+							Ref<Image> img = memnew(Image(image.w, image.h, 0, Image::FORMAT_RGBA8, frame_data));
+							texture->set_data(img); //Zero copy send to visual server
+							video_frame_done = true;
+						}
+					}
+				}
+			}
+		}
+
+		video_pos = video_frame->time;
+		memmove(video_frames, video_frames + 1, (--video_frames_pos) * sizeof(void *));
+		video_frames[video_frames_pos] = video_frame;
+	}
+
+	if (video_frames_pos == 0 && webm->isEOS())
+		stop();
 }
 
 void VideoStreamPlaybackWmf::set_mix_callback(AudioMixCallback p_callback, void *p_userdata) {}
