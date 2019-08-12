@@ -14,13 +14,15 @@ void SafeRelease(T **ptr) {
 }
 
 // Write a wrapper for the SourceReader (Might be only used for creating a simplified implementations of what's needed)
+// the implementationals won't be 
 class MediaSource {
     IMFSourceReader *reader;
-    IMFByteStream *byte_stream; // this is going to be the stream that reads the file
-    // this will allow for lazily loading from the file
     IMFSample *sample; // this is basically is a video frame with additional data
     // you also need audio decoding and an audio sample as well for it
     // each sample only holds data of the specific stream
+
+    // output type
+    IMFMediaType outputType; // I believe it would be RBG8 or RGBA8 :/
 
     // helper method to get the flags of the media
     HRESULT GetSourceFlags(ULONG *pulFlags) {
@@ -46,6 +48,31 @@ class MediaSource {
     }
 
 public:
+    MediaSource() {
+        // ! TODO: Finish this function either use flag variables or just make it a parameterized constructor
+        // Initialize the COM library.
+        hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+        // if succeeded in the last operation
+        if (SUCCEEDED(hr)) {
+            // Initialize the Media Foundation platform.
+            hr = MFStartup(MF_VERSION);
+            if (SUCCEEDED(hr)) {
+                // Create the source reader to read the input file.
+                // ? hr = CreateSource(path);
+            }
+        }
+    }
+    ~MediaSource() {
+        MFShutdown();
+        CoUninitialize();
+    }
+
+    HRESULT CreateSource(const wchar_t *path) {
+        // plan some IMFAttributes that might need to be added
+        return MFCreateSourceReaderFromURL(path, NULL, &reader);
+    }
+
     // check to see if the media is seekable
     BOOL SourceCanSeek() {
         BOOL bCanSeek = FALSE;
@@ -90,22 +117,12 @@ VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
     p_reader = NULL;
     HANDLE hFile = INVALID_HANDLE_VALUE;
 
-    // Initialize the COM library.
-    hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-    // if succeeded in the last operation
-    if (SUCCEEDED(hr)) {
-        // Initialize the Media Foundation platform.
-        hr = MFStartup(MF_VERSION);
-    }
-
-    if (SUCCEEDED(hr)) {
-        // Create the source reader to read the input file.
-        // hr = MFCreateSourceReaderFromURL(wszSourceFile, NULL, &reader);
-        if (FAILED(hr)) {
-            ERR_PRINT("Couldn't read from the source file properly.");
+            if (FAILED(hr)) {
+                ERR_PRINT("Couldn't read from the source file properly.");
+            }
         }
     }
+
 }
 VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
     // delete_pointers();
