@@ -249,6 +249,11 @@ public:
 	bool has_ended() const {
 		return ended;
 	}
+
+	bool set_media_output_type(short type) {
+		// change the media output type
+		return false;
+	}
 };
 
 
