@@ -4,130 +4,15 @@
 #include "core/os/os.h"
 #include "core/project_settings.h"
 
-
-template<typename T>
-void SafeRelease(T **ptr) {
-    if (ptr && *ptr) {
-        (*ptr)->Release();
-    }
-    return;
-}
-
-// Write a wrapper for the SourceReader (Might be only used for creating a simplified implementations of what's needed)
-// the implementationals won't be 
-class MediaSource {
-    IMFSourceReader *reader;
-    IMFSample *sample; // this is basically is a video frame with additional data
-    // you also need audio decoding and an audio sample as well for it
-    // each sample only holds data of the specific stream
-
-    // output type
-    IMFMediaType outputType; // I believe it would be RBG8 or RGBA8 :/
-
-    // helper method to get the flags of the media
-    HRESULT GetSourceFlags(ULONG *pulFlags) {
-        ULONG flags = 0;
-
-        PROPVARIANT var;
-        PropVariantInit(&var);
-
-        HRESULT hr = reader->GetPresentationAttribute(
-            MF_SOURCE_READER_MEDIASOURCE, 
-            MF_SOURCE_READER_MEDIASOURCE_CHARACTERISTICS, 
-            &var);
-
-        if (SUCCEEDED(hr)) {
-            hr = PropVariantToUInt32(var, &flags);
-        }
-        if (SUCCEEDED(hr)) {
-            *pulFlags = flags;
-        }
-
-        PropVariantClear(&var);
-        return hr;
-    }
-
-public:
-    MediaSource() {
-        // ! TODO: Finish this function either use flag variables or just make it a parameterized constructor
-        // Initialize the COM library.
-        hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-        // if succeeded in the last operation
-        if (SUCCEEDED(hr)) {
-            // Initialize the Media Foundation platform.
-            hr = MFStartup(MF_VERSION);
-            if (SUCCEEDED(hr)) {
-                // Create the source reader to read the input file.
-                // ? hr = CreateSource(path);
-            }
-        }
-    }
-    ~MediaSource() {
-        MFShutdown();
-        CoUninitialize();
-    }
-
-    HRESULT CreateSource(const wchar_t *path) {
-        // plan some IMFAttributes that might need to be added
-        return MFCreateSourceReaderFromURL(path, NULL, &reader);
-    }
-
-    // check to see if the media is seekable
-    BOOL SourceCanSeek() {
-        BOOL bCanSeek = FALSE;
-        ULONG flags;
-        if (SUCCEEDED(GetSourceFlags(reader, &flags))) {
-            bCanSeek = ((flags & MFMEDIASOURCE_CAN_SEEK) == MFMEDIASOURCE_CAN_SEEK);
-        }
-        return bCanSeek;
-    }
-
-    HRESULT SetPosition(const LONGLONG& hnsPosition) {
-        PROPVARIANT var;
-        HRESULT hr = InitPropVariantFromInt64(hnsPosition, &var);
-        if (SUCCEEDED(hr)) {
-            // GUID_NULL is for 100 nanosec unit
-            hr = reader->SetCurrentPosition(GUID_NULL, var);
-            PropVariantClear(&var);
-        }
-        return hr;
-    }
-
-    // method to get the source reader duration in 100 nanosec units
-    HRESULT GetDuration(LONGLONG *phnsDuration) {
-        PROPVARIANT var;
-        HRESULT hr = reader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, 
-            MF_PD_DURATION, &var);
-        if (SUCCEEDED(hr)) {
-            hr = PropVariantToInt64(var, phnsDuration);
-            PropVariantClear(&var);
-        }
-        return hr;
-    }
-};
-
 ////////////////////////
 /////Video_PLayback/////
 ////////////////////////
 
 VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
-    HRESULT hr = S_OK;
-
-    p_reader = NULL;
-    HANDLE hFile = INVALID_HANDLE_VALUE;
-
-            if (FAILED(hr)) {
-                ERR_PRINT("Couldn't read from the source file properly.");
-            }
-        }
-    }
-
+    source = new MediaSource();
 }
 VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
-    // delete_pointers();
-    MFShutdown();
-    CoUninitialize();
+	delete x;
 }
 
 bool VideoStreamPlaybackWmf::open_file(const String &p_file) {
@@ -307,23 +192,8 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 								bRow += image.linesize[1];
 							}
 							converted = true;
-						} else if (image.chromaShiftW == 1 && image.chromaShiftH == 1) {
-
-							yuv420_2_rgb8888(w.ptr(), image.planes[0], image.planes[1], image.planes[2], image.w, image.h, image.linesize[0], image.linesize[1], image.w << 2);
-							// 								libyuv::I420ToARGB(image.planes[0], image.linesize[0], image.planes[2], image.linesize[2], image.planes[1], image.linesize[1], w.ptr(), image.w << 2, image.w, image.h);
-							converted = true;
-						} else if (image.chromaShiftW == 1 && image.chromaShiftH == 0) {
-
-							yuv422_2_rgb8888(w.ptr(), image.planes[0], image.planes[1], image.planes[2], image.w, image.h, image.linesize[0], image.linesize[1], image.w << 2);
-							// 								libyuv::I422ToARGB(image.planes[0], image.linesize[0], image.planes[2], image.linesize[2], image.planes[1], image.linesize[1], w.ptr(), image.w << 2, image.w, image.h);
-							converted = true;
-						} else if (image.chromaShiftW == 0 && image.chromaShiftH == 0) {
-
-							yuv444_2_rgb8888(w.ptr(), image.planes[0], image.planes[1], image.planes[2], image.w, image.h, image.linesize[0], image.linesize[1], image.w << 2);
-							// 								libyuv::I444ToARGB(image.planes[0], image.linesize[0], image.planes[2], image.linesize[2], image.planes[1], image.linesize[1], w.ptr(), image.w << 2, image.w, image.h);
-							converted = true;
 						}
-
+						// THE Media Output Format is RGBA8
 						if (converted) {
 							Ref<Image> img = memnew(Image(image.w, image.h, 0, Image::FORMAT_RGBA8, frame_data));
 							texture->set_data(img); //Zero copy send to visual server
@@ -334,9 +204,8 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 			}
 		}
 
-		video_pos = video_frame->time;
-		memmove(video_frames, video_frames + 1, (--video_frames_pos) * sizeof(void *));
-		video_frames[video_frames_pos] = video_frame;
+		video_pos = source->get_frame_time();
+		source->move_frame();
 	}
 
 	if (video_frames_pos == 0 && webm->isEOS())
