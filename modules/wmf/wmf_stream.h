@@ -245,6 +245,10 @@ public:
 		if (SUCCEEDED(sample->GetSampleTime(&time)))
 			return time / 1e9; // convert from nanosec to sec
 	}
+
+	bool has_ended() const {
+		return ended;
+	}
 };
 
 

@@ -97,7 +97,7 @@ Ref<Texture> VideoStreamPlaybackWmf::get_texture() {
 
 void VideoStreamPlaybackWmf::update(float p_delta) {
     // update the frame :D
-    if ((!playing || paused) || !video)
+    if ((!playing || paused) || !source)
 		return;
 
 	time += p_delta;
@@ -106,109 +106,100 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 		return;
 	}
 
-	bool audio_buffer_full = false;
+	// TODO: get the audio stream working using Media Foundation itself
+	// Most of this uses the features provided by Media Foundation itself like moving across frames and caching to some level
+	// we can just reuse to not have to rewrite much
 
-	if (samples_offset > -1) {
+	// bool audio_buffer_full = false;
 
-		//Mix remaining samples
-		const int to_read = num_decoded_samples - samples_offset;
-		const int mixed = mix_callback(mix_udata, pcm + samples_offset * webm->getChannels(), to_read);
-		if (mixed != to_read) {
+	// if (samples_offset > -1) {
 
-			samples_offset += mixed;
-			audio_buffer_full = true;
-		} else {
+	// 	//Mix remaining samples
+	// 	const int to_read = num_decoded_samples - samples_offset;
+	// 	const int mixed = mix_callback(mix_udata, pcm + samples_offset * webm->getChannels(), to_read);
+	// 	if (mixed != to_read) {
 
-			samples_offset = -1;
-		}
-	}
+	// 		samples_offset += mixed;
+	// 		audio_buffer_full = true;
+	// 	} else {
 
-	const bool hasAudio = (audio && mix_callback);
-	while ((hasAudio && !audio_buffer_full && !has_enough_video_frames()) ||
-			(!hasAudio && video_frames_pos == 0)) {
+	// 		samples_offset = -1;
+	// 	}
+	// }
 
-		if (hasAudio && !audio_buffer_full && audio_frame->isValid() &&
-				audio->getPCMF(*audio_frame, pcm, num_decoded_samples) && num_decoded_samples > 0) {
+	// const bool hasAudio = (audio && mix_callback);
+	// while ((hasAudio && !audio_buffer_full && !has_enough_video_frames()) ||
+	// 		(!hasAudio && video_frames_pos == 0)) {
 
-			const int mixed = mix_callback(mix_udata, pcm, num_decoded_samples);
+	// 	if (hasAudio && !audio_buffer_full && audio_frame->isValid() &&
+	// 			audio->getPCMF(*audio_frame, pcm, num_decoded_samples) && num_decoded_samples > 0) {
 
-			if (mixed != num_decoded_samples) {
-				samples_offset = mixed;
-				audio_buffer_full = true;
-			}
-		}
+	// 		const int mixed = mix_callback(mix_udata, pcm, num_decoded_samples);
 
-		WebMFrame *video_frame;
-		if (video_frames_pos >= video_frames_capacity) {
+	// 		if (mixed != num_decoded_samples) {
+	// 			samples_offset = mixed;
+	// 			audio_buffer_full = true;
+	// 		}
+	// 	}
 
-			WebMFrame **video_frames_new = (WebMFrame **)memrealloc(video_frames, ++video_frames_capacity * sizeof(void *));
-			ERR_FAIL_COND(!video_frames_new); //Out of memory
-			(video_frames = video_frames_new)[video_frames_capacity - 1] = memnew(WebMFrame);
-		}
-		video_frame = video_frames[video_frames_pos];
+	// 	WebMFrame *video_frame;
+	// 	if (video_frames_pos >= video_frames_capacity) {
 
-		if (!webm->readFrame(video_frame, audio_frame)) //This will invalidate frames
-			break; //Can't demux, EOS?
+	// 		WebMFrame **video_frames_new = (WebMFrame **)memrealloc(video_frames, ++video_frames_capacity * sizeof(void *));
+	// 		ERR_FAIL_COND(!video_frames_new); //Out of memory
+	// 		(video_frames = video_frames_new)[video_frames_capacity - 1] = memnew(WebMFrame);
+	// 	}
+	// 	video_frame = video_frames[video_frames_pos];
 
-		if (video_frame->isValid())
-			++video_frames_pos;
-	};
+	// 	if (!webm->readFrame(video_frame, audio_frame)) //This will invalidate frames
+	// 		break; //Can't demux, EOS?
+
+	// 	if (video_frame->isValid())
+	// 		++video_frames_pos;
+	// };
 
 	bool video_frame_done = false;
 	while (video_frames_pos > 0 && !video_frame_done) {
 
-		WebMFrame *video_frame = video_frames[0];
+		if (source->move_frame()) {
+			// PoolVector<uint8_t>::Write w = frame_data.write();
+			// if (image.chromaShiftW == 0 && image.chromaShiftH == 0 && image.cs == VPX_CS_SRGB) {
 
-		// It seems VPXDecoder::decode has to be executed even though we might skip this frame
-		if (video->decode(*video_frame)) {
+			// 	uint8_t *wp = w.ptr();
+			// 	unsigned char *rRow = image.planes[2];
+			// 	unsigned char *gRow = image.planes[0];
+			// 	unsigned char *bRow = image.planes[1];
+			// 	for (int i = 0; i < image.h; i++) {
+			// 		for (int j = 0; j < image.w; j++) {
+			// 			*wp++ = rRow[j];
+			// 			*wp++ = gRow[j];
+			// 			*wp++ = bRow[j];
+			// 			*wp++ = 255;
+			// 		}
+			// 		rRow += image.linesize[2];
+			// 		gRow += image.linesize[0];
+			// 		bRow += image.linesize[1];
+			// 	}
+			// 	converted = true;
+			// }
 
-			VPXDecoder::IMAGE_ERROR err;
-			VPXDecoder::Image image;
+			// The Media Output Format is RGBA8
+			// ensure the source frame_data output type is RGBA8
+			source->set_media_output_type(MediaSource::MediaOutputType::OUTPUT_FLAG_RGBA8);
 
-			if (should_process(*video_frame)) {
-
-				if ((err = video->getImage(image)) != VPXDecoder::NO_FRAME) {
-
-					if (err == VPXDecoder::NO_ERROR && image.w == webm->getWidth() && image.h == webm->getHeight()) {
-
-						PoolVector<uint8_t>::Write w = frame_data.write();
-						bool converted = false;
-
-						if (image.chromaShiftW == 0 && image.chromaShiftH == 0 && image.cs == VPX_CS_SRGB) {
-
-							uint8_t *wp = w.ptr();
-							unsigned char *rRow = image.planes[2];
-							unsigned char *gRow = image.planes[0];
-							unsigned char *bRow = image.planes[1];
-							for (int i = 0; i < image.h; i++) {
-								for (int j = 0; j < image.w; j++) {
-									*wp++ = rRow[j];
-									*wp++ = gRow[j];
-									*wp++ = bRow[j];
-									*wp++ = 255;
-								}
-								rRow += image.linesize[2];
-								gRow += image.linesize[0];
-								bRow += image.linesize[1];
-							}
-							converted = true;
-						}
-						// THE Media Output Format is RGBA8
-						if (converted) {
-							Ref<Image> img = memnew(Image(image.w, image.h, 0, Image::FORMAT_RGBA8, frame_data));
-							texture->set_data(img); //Zero copy send to visual server
-							video_frame_done = true;
-						}
-					}
-				}
+			// get the frame data from the source
+			if (source->get_frame_data(frame_data)) {}
+				Ref<Image> img = memnew(Image(image.w, image.h, 0, Image::FORMAT_RGBA8, frame_data));
+				texture->set_data(img); //Zero copy send to visual server
+				video_frame_done = true;
 			}
 		}
 
 		video_pos = source->get_frame_time();
-		source->move_frame();
+		video_frames_pos--; // ? not sure what's the use of this one
 	}
 
-	if (video_frames_pos == 0 && webm->isEOS())
+	if (video_frames_pos == 0 && source->has_ended())
 		stop();
 }
 
