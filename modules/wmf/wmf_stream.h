@@ -162,7 +162,7 @@ public:
             if (SUCCEEDED(hr)) {
                 // Create the source reader to read the input file.
                 if (create_source(path)) {
-					// TODO: set output media type
+					set_media_output_type(type_flags);
 					frame_read = false;
 					current_frame_count = 0;
 				}
