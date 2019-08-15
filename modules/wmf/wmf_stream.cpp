@@ -4,15 +4,252 @@
 #include "core/os/os.h"
 #include "core/project_settings.h"
 
+#include "propvarutil.h"
+
+// helper method to get the flags of the media
+HRESULT WmfMediaSource::_get_source_flags(ULONG *pulFlags) {
+	ULONG flags = 0;
+
+	PROPVARIANT var;
+	PropVariantInit(&var);
+
+	HRESULT hr = reader->GetPresentationAttribute(
+		MF_SOURCE_READER_MEDIASOURCE, 
+		MF_SOURCE_READER_MEDIASOURCE_CHARACTERISTICS, 
+		&var);
+
+	if (SUCCEEDED(hr)) {
+		hr = PropVariantToUInt32(var, &flags);
+	}
+	if (SUCCEEDED(hr)) {
+		*pulFlags = flags;
+	}
+
+	PropVariantClear(&var);
+	return hr;
+}
+
+
+// check to see if the media is seekable
+BOOL WmfMediaSource::_source_can_seek() {
+	BOOL bCanSeek = FALSE;
+	ULONG flags;
+	if (SUCCEEDED(_get_source_flags(&flags))) {
+		bCanSeek = ((flags & MFMEDIASOURCE_CAN_SEEK) == MFMEDIASOURCE_CAN_SEEK);
+	}
+	return bCanSeek;
+}
+
+// TODO: Expose it
+HRESULT WmfMediaSource::_set_position(const LONGLONG& hnsPosition) {
+	PROPVARIANT var;
+	HRESULT hr = InitPropVariantFromInt64(hnsPosition, &var);
+	if (SUCCEEDED(hr)) {
+		// GUID_NULL is for 100 nanosec unit
+		hr = reader->SetCurrentPosition(GUID_NULL, var);
+		PropVariantClear(&var);
+	}
+	return hr;
+}
+
+// method to get the source reader duration in 100 nanosec units
+HRESULT WmfMediaSource::_get_duration(LONGLONG *phnsDuration) {
+	PROPVARIANT var;
+	HRESULT hr = reader->GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE, 
+		MF_PD_DURATION, &var);
+	if (SUCCEEDED(hr)) {
+		hr = PropVariantToInt64(var, phnsDuration);
+		PropVariantClear(&var);
+	}
+	return hr;
+}
+
+void WmfMediaSource::_process_width_height() {
+	IMFMediaType *p_type;
+	reader->GetCurrentMediaType(0, &p_type); // I am guessing stream 0 is the video stream if it's not well atleast no one died
+	MFGetAttributeSize(p_type, MF_MT_FRAME_SIZE, &width, &height);
+}
+
+WmfMediaSource::WmfMediaSource() {
+	ended = false;
+	reader = NULL;
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+	// if succeeded in the last operation
+	if (SUCCEEDED(hr)) // Initialize the Media Foundation platform.
+		hr = MFStartup(MF_VERSION);
+
+	frame_read = false;
+	current_frame_count = 0;
+}
+
+WmfMediaSource::WmfMediaSource(const String &path, short type_flags) {
+	reader = NULL;
+	ended = false;
+	// Initialize the COM library.
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	frame_read = true;
+
+	// if succeeded in the last operation
+	if (SUCCEEDED(hr)) {
+		// Initialize the Media Foundation platform.
+		hr = MFStartup(MF_VERSION);
+		if (SUCCEEDED(hr)) {
+			// Create the source reader to read the input file.
+			if (create_source(path)) {
+				set_media_output_type(type_flags);
+				frame_read = false;
+				current_frame_count = 0;
+			}
+		}
+	}
+	_process_width_height();
+}
+
+WmfMediaSource::~WmfMediaSource() {
+	ended = true;
+	MFShutdown();
+	CoUninitialize();
+}
+
+bool WmfMediaSource::create_source(const String &path) {
+	const wchar_t *path_wchar = path.c_str(); // CharType is wchar_t
+	// plan some IMFAttributes that might need to be added
+	reader = NULL;
+	ended = false;
+
+	if (SUCCEEDED(MFCreateSourceReaderFromURL(path_wchar, NULL, &reader))) {
+		frame_read = false;
+		current_frame_count = 0;
+		_process_width_height();
+		return true;
+	}
+	frame_read = true;
+	return false;
+}
+
+long WmfMediaSource::get_length() {
+	if (!reader)
+		return 0;
+	LONGLONG val;
+	_get_duration(&val);
+	return val;
+}
+
+unsigned int WmfMediaSource::get_width() {
+	if (!reader)
+		return 0;
+	return width;
+}
+
+unsigned int WmfMediaSource::get_height() {
+	if (!reader)
+		return 0;
+	return height;
+}
+
+bool WmfMediaSource::get_frame_data(PoolVector<uint8_t> &bytevec) {
+	// return the current frame if it's not been read
+	if (!frame_read) {
+		PoolVector<uint8_t>::Write wrt = bytevec.write();
+		uint8_t *w = wrt.ptr();
+		// create a IMFMediaBuffer using the ConvertToContigousBuffer
+		IMFMediaBuffer *media_buf;
+		HRESULT hr = sample->ConvertToContiguousBuffer(&media_buf);
+		if (SUCCEEDED(hr)) {
+			// convert to a IMF2DBuffer using the QueryInterface function on MediaBuffer
+			IMF2DBuffer *d_buff;
+			hr = media_buf->QueryInterface<IMF2DBuffer>(&d_buff);
+			if (SUCCEEDED(hr)) {
+				BOOL iscontigous = 0;
+				hr = d_buff->IsContiguousFormat(&iscontigous);
+				if (SUCCEEDED(hr)) {
+					// use the Lock2D if the isContigous is true
+					// otherwise use Lock which is slower but guarantees contigous memory 
+					DWORD len;
+					d_buff->GetContiguousLength(&len);
+					if (len > bytevec.size())
+						return false;
+					d_buff->ContiguousCopyTo(w, len);
+					return true;
+					// for (int i = 0; i < width; i++) {
+					// 	for (int j = 0; j < height; j++) {
+					// 		// *(++w) = *(++buffer);
+					// 		// *(++w) = *(++buffer);
+					// 		// *(++w) = *(++buffer);
+					// 		// *(++w) = 0; // No Alpha in Video itself I would presume
+					// 	}
+					// }
+				}
+			}
+		}
+	}
+	frame_read = true;
+	return false;
+}
+
+bool WmfMediaSource::move_frame(float time = 0, bool forward = true) {
+	// move forward by a minimum the provided time
+	// get the next best frame after the duration
+	// use the loop with the sample duration
+
+	DWORD flags;
+	LONGLONG timestamp;
+
+	HRESULT hr = reader->ReadSample(
+		MF_SOURCE_READER_FIRST_VIDEO_STREAM,
+		0, &actualVideoStreamIndex, &flags, &timestamp, &sample);
+
+	if (FAILED(hr)) {
+		return false;
+	}
+
+	if (flags & MF_SOURCE_READERF_ENDOFSTREAM) {
+		ended = true;
+	}
+
+	current_frame_count++;
+	frame_read = false;
+	return true;
+}
+
+long long WmfMediaSource::get_frame_pos() const {
+	// current frame count
+	return current_frame_count;
+}
+
+float WmfMediaSource::get_frame_time() const {
+	LONGLONG time;
+	if (SUCCEEDED(sample->GetSampleTime(&time)))
+		return time / 1e9; // convert from nanosec to sec
+	return 0;
+}
+
+bool WmfMediaSource::has_ended() const {
+	return ended;
+}
+
+bool WmfMediaSource::set_media_output_type(short type) {
+	// change the media output type
+	// TODO: allow options but Godot Textures use RGBA8 so not sure if I will even do any of it.. :/
+	HRESULT hr = MFCreateMediaType(&outputType);
+	if (SUCCEEDED(hr)) {
+		hr = outputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
+		if (SUCCEEDED(hr))
+			hr = outputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB8);
+	}
+	return false;
+}
+
 ////////////////////////
 /////Video_PLayback/////
 ////////////////////////
 
 VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
-    source = new MediaSource();
+    source = (WmfMediaSource *)malloc(sizeof(WmfMediaSource));
 }
 VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
-	delete x;
+	delete source;
 }
 
 bool VideoStreamPlaybackWmf::open_file(const String &p_file) {
@@ -165,17 +402,17 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 		if (source->move_frame()) {
 			// The Media Output Format is RGB8
 			// ensure the source frame_data output type is RGB8
-			source->set_media_output_type(MediaSource::MediaOutputType::OUTPUT_FLAG_RGB8);
+			source->set_media_output_type(WmfMediaSource::MediaOutputType::OUTPUT_FLAG_RGB8);
 			// let alpha be 0
 
 			// get the frame data from the source
 			if (source->get_frame_data(frame_data)) {
-				Ref<Image> img = memnew(Image(image.w, image.h, 0, Image::FORMAT_RGBA8, frame_data));
+				Ref<Image> img = memnew(Image(source->get_width(), source->get_height(), 0, Image::FORMAT_RGBA8, frame_data));
 				texture->set_data(img); // zero copy send to visual server
 				video_frame_done = true;
 			}
 		}
-
+		// this loop won't work.... :(
 		video_pos = source->get_frame_time();
 		video_frames_pos--; // ? not sure what's the use of this one
 	}
@@ -188,10 +425,6 @@ void VideoStreamPlaybackWmf::set_mix_callback(AudioMixCallback p_callback, void 
 int VideoStreamPlaybackWmf::get_channels() const { return 3; }
 int VideoStreamPlaybackWmf::get_mix_rate() const { return 0; }
 
-void VideoStreamPlaybackWmf::delete_pointers() {
-    SafeRelease(&p_reader);
-    SafeRelease(&byte_stream);
-}
 
 ////////////////////////
 //////Video_Stream//////
