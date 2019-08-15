@@ -18,6 +18,7 @@ VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
 bool VideoStreamPlaybackWmf::open_file(const String &p_file) {
     String st = ProjectSettings::get_singleton()->globalize_path(p_file);
     print_line(st);
+	frame_data.resize((source->get_width() * source->get_height()) << 2); // 4 values r,g,b,a
     return false;
 }
 
@@ -162,35 +163,15 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 	while (video_frames_pos > 0 && !video_frame_done) {
 
 		if (source->move_frame()) {
-			// PoolVector<uint8_t>::Write w = frame_data.write();
-			// if (image.chromaShiftW == 0 && image.chromaShiftH == 0 && image.cs == VPX_CS_SRGB) {
-
-			// 	uint8_t *wp = w.ptr();
-			// 	unsigned char *rRow = image.planes[2];
-			// 	unsigned char *gRow = image.planes[0];
-			// 	unsigned char *bRow = image.planes[1];
-			// 	for (int i = 0; i < image.h; i++) {
-			// 		for (int j = 0; j < image.w; j++) {
-			// 			*wp++ = rRow[j];
-			// 			*wp++ = gRow[j];
-			// 			*wp++ = bRow[j];
-			// 			*wp++ = 255;
-			// 		}
-			// 		rRow += image.linesize[2];
-			// 		gRow += image.linesize[0];
-			// 		bRow += image.linesize[1];
-			// 	}
-			// 	converted = true;
-			// }
-
-			// The Media Output Format is RGBA8
-			// ensure the source frame_data output type is RGBA8
-			source->set_media_output_type(MediaSource::MediaOutputType::OUTPUT_FLAG_RGBA8);
+			// The Media Output Format is RGB8
+			// ensure the source frame_data output type is RGB8
+			source->set_media_output_type(MediaSource::MediaOutputType::OUTPUT_FLAG_RGB8);
+			// let alpha be 0
 
 			// get the frame data from the source
-			if (source->get_frame_data(frame_data)) {}
+			if (source->get_frame_data(frame_data)) {
 				Ref<Image> img = memnew(Image(image.w, image.h, 0, Image::FORMAT_RGBA8, frame_data));
-				texture->set_data(img); //Zero copy send to visual server
+				texture->set_data(img); // zero copy send to visual server
 				video_frame_done = true;
 			}
 		}

@@ -58,9 +58,12 @@ class MediaSource {
     // each sample only holds data of the specific stream
 
     // output type
-    IMFMediaType outputType; // I believe it would be RBG8 or RGBA8 :/
+    IMFMediaType *outputType; // I believe it would be RBG8 or RGBA8 :/
 
 	long long current_frame_count;
+
+	int width, height;
+	DWORD actualVideoStreamIndex;
 
     // helper method to get the flags of the media
     HRESULT _get_source_flags(ULONG *pulFlags) {
@@ -120,6 +123,12 @@ class MediaSource {
         return hr;
     }
 
+	void _process_width_height() {
+		IMFMediaType *p_type;
+		reader->GetCurrentMediaType(0, &p_type); // I am guessing stream 0 is the video stream if it's not well atleast no one died
+		MFGetAttributeSize(p_type, MF_MT_FRAME_SIZE, &width, &height);
+	}
+
 public:
 
 	/*******************************************************************************/
@@ -168,6 +177,7 @@ public:
 				}
             }
         }
+		_process_width_height();
     }
 
     ~MediaSource() {
@@ -185,6 +195,7 @@ public:
         if (SUCCEEDED(MFCreateSourceReaderFromURL(path_wchar, NULL, &reader))) {
 			frame_read = false;
 			current_frame_count = 0;
+			_process_width_height();
 			return true;
 		}
 		frame_read = true;
@@ -199,12 +210,55 @@ public:
 		return val;
 	}
 
+	int get_width() {
+		if (!reader)
+			return -1;
+		return width;
+	}
+
+	int get_height() {
+		if (!reader)
+			return -1;
+		return height;
+	}
+
 	bool get_frame_data(PoolVector<uint8_t> &bytevec) {
 		// return the current frame if it's not been read
 		if (!frame_read) {
-			// woohoo
+			PoolVector<uint8_t>::Write wrt = bytevec.write();
+			uint8_t w = wrt.ptr();
+			// create a IMFMediaBuffer using the ConvertToContigousBuffer
+			IMFMediaBuffer *media_buf;
+			HRESULT hr = sample->ConvertToContiguousBuffer(&media_buf);
+			if (SUCCEEDED(hr)) {
+				// convert to a IMF2DBuffer using the QueryInterface function on MediaBuffer
+				IMF2DBuffer *d_buff;
+				hr = media_buf->QueryInterface<IMF2DBuffer>(&d_buff);
+				if (SUCCEEDED(hr)) {
+					BOOL iscontigous = 0;
+					hr = d_buff->IsContiguousFormat(&iscontigous);
+					if (SUCCEEDED(hr)) {
+					// use the Lock2D if the isContigous is true
+					// otherwise use Lock which is slower but guarantees contigous memory 
+					DWORD len;
+					d_buff->GetContiguousLength(&len);
+					if (len > bytevec.size())
+						return false;
+					d_buff->ContiguousCopyTo(w, len);
+					return true;
+					// for (int i = 0; i < width; i++) {
+					// 	for (int j = 0; j < height; j++) {
+					// 		// *(++w) = *(++buffer);
+					// 		// *(++w) = *(++buffer);
+					// 		// *(++w) = *(++buffer);
+					// 		// *(++w) = 0; // No Alpha in Video itself I would presume
+					// 	}
+					// }
+				}
+			}
 		}
 		frame_read = true;
+		return false;
 	}
 
 	bool move_frame(float time, bool forward = true) {
@@ -212,12 +266,12 @@ public:
 		// get the next best frame after the duration
 		// use the loop with the sample duration
 
-		DWORD streamIndex, flags;
+		DWORD flags;
 		LONGLONG timestamp;
 
 		reader->ReadSample(
             MF_SOURCE_READER_FIRST_VIDEO_STREAM,
-            0, &streamIndex, &flags, &timestamp, &sample);
+            0, &actualVideoStreamIndex, &flags, &timestamp, &sample);
 
         if (flags & MF_SOURCE_READERF_ENDOFSTREAM)
             break;
@@ -252,6 +306,13 @@ public:
 
 	bool set_media_output_type(short type) {
 		// change the media output type
+		// TODO: allow options but Godot Textures use RGBA8 so not sure if I will even do any of it.. :/
+		HRESULT hr = MFCreateMediaType(&outputType);
+		if (SUCCEEDED(hr)) {
+			hr = outputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
+			if (SUCCEEDED(hr))
+				hr = outputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB8);
+		}
 		return false;
 	}
 };
