@@ -219,7 +219,7 @@ def configure_msvc(env, manual_msvc_config):
 
     LIBS = ['winmm', 'opengl32', 'dsound', 'kernel32', 'ole32', 'oleaut32',
             'user32', 'gdi32', 'IPHLPAPI', 'Shlwapi', 'wsock32', 'Ws2_32',
-	    'shell32', 'advapi32', 'dinput8', 'dxguid', 'imm32', 'bcrypt','Avrt', 'mf', 'mfplat', 'mfreadwrite', 'mfuuid', 'evr']
+	    'shell32', 'advapi32', 'dinput8', 'dxguid', 'imm32', 'bcrypt','Avrt', 'mf', 'mfplat', 'mfreadwrite', 'mfuuid', 'evr', 'propsys']
     env.Append(LINKFLAGS=[p + env["LIBSUFFIX"] for p in LIBS])
 
     if manual_msvc_config:
