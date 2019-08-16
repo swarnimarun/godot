@@ -166,20 +166,20 @@ bool WmfMediaSource::get_frame_data(PoolVector<uint8_t> &bytevec) {
 				if (SUCCEEDED(hr)) {
 					// use the Lock2D if the isContigous is true
 					// otherwise use Lock which is slower but guarantees contigous memory 
-					DWORD len;
-					d_buff->GetContiguousLength(&len);
-					if (len > bytevec.size())
-						return false;
-					d_buff->ContiguousCopyTo(w, len);
-					return true;
-					// for (int i = 0; i < width; i++) {
-					// 	for (int j = 0; j < height; j++) {
-					// 		// *(++w) = *(++buffer);
-					// 		// *(++w) = *(++buffer);
-					// 		// *(++w) = *(++buffer);
-					// 		// *(++w) = 0; // No Alpha in Video itself I would presume
-					// 	}
-					// }
+					if (iscontigous) {
+						BYTE *buffer;
+						LONG pitch;
+						hr = d_buff->Lock2D(&buffer, &pitch);
+						for (int j = 0; j < height; j++) {
+							for (int i = 0; i < width; i++) {
+								*(++w) = *(buffer + 3 * i + pitch * j);
+								*(++w) = *(buffer + 1 + 3 * i + pitch * j);
+								*(++w) = *(buffer + 2 + 3 * i + pitch * j);
+								*(++w) = 255; // No Alpha in Video itself I would presume
+							}
+						}
+						return true;
+					}
 				}
 			}
 		}
@@ -249,14 +249,17 @@ VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
     source = (WmfMediaSource *)malloc(sizeof(WmfMediaSource));
 }
 VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
-	delete source;
+	if (source)
+		free(source);
 }
 
 bool VideoStreamPlaybackWmf::open_file(const String &p_file) {
     String st = ProjectSettings::get_singleton()->globalize_path(p_file);
-    print_line(st);
-	frame_data.resize((source->get_width() * source->get_height()) << 2); // 4 values r,g,b,a
-    return false;
+	if (source->create_source(st)) {
+		frame_data.resize((source->get_width() * source->get_height()) << 2); // 4 values r,g,b,a    
+		return true;
+	}
+	return false;
 }
 
 void VideoStreamPlaybackWmf::stop() {
@@ -269,6 +272,8 @@ void VideoStreamPlaybackWmf::stop() {
 
 		// audio_frame = NULL;
 		// video_frames = NULL;
+
+		frame_data.resize(0);
 
 		// video = NULL;
 		// audio = NULL;
@@ -397,6 +402,7 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 	// };
 
 	bool video_frame_done = false;
+	video_frames_pos = 4;
 	while (video_frames_pos > 0 && !video_frame_done) {
 
 		if (source->move_frame()) {
@@ -483,9 +489,6 @@ RES ResourceFormatLoaderWmf::load(const String &p_path, const String &p_original
         return RES();
 
 	wmf_stream->set_file(p_path);
-
-    // ! For testing
-    wmf_stream->instance_playback();
 
     // check for propagated errors and clear them if any
 	if (r_error) {
