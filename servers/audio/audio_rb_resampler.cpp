@@ -151,10 +151,7 @@ int AudioRBResampler::get_num_of_ready_frames() {
 		return 0;
 	int32_t increment = (src_mix_rate * MIX_FRAC_LEN) / target_mix_rate;
 	int read_space = get_reader_space();
-	if (increment != 0)
-		return (int64_t(read_space) << MIX_FRAC_BITS) / increment;
-	else
-		return 0;
+	return (int64_t(read_space) << MIX_FRAC_BITS) / increment;
 }
 
 Error AudioRBResampler::setup(int p_channels, int p_src_mix_rate, int p_target_mix_rate, int p_buffer_msec, int p_minbuff_needed) {

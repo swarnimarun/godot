@@ -133,6 +133,7 @@ bool WmfMediaSource::create_source(const String &path) {
 		frame_read = false;
 		current_frame_count = 0;
 		_process_width_height();
+		set_media_output_type(0);
 		return true;
 	}
 	return false;
@@ -168,12 +169,13 @@ bool WmfMediaSource::get_frame_data(PoolVector<uint8_t> &bytevec) {
 		HRESULT hr = sample->ConvertToContiguousBuffer(&media_buf);
 		if (SUCCEEDED(hr)) {
 			// convert to a IMF2DBuffer using the QueryInterface function on MediaBuffer
+			BYTE *buffer;
+			DWORD CURR_SIZE;
 			IMF2DBuffer *d_buff;
 			hr = media_buf->QueryInterface<IMF2DBuffer>(&d_buff);
 			if (SUCCEEDED(hr)) {
 				// use the Lock2D if the isContigous is true
 				// otherwise use Lock which is slower but guarantees contigous memory 
-				BYTE *buffer;
 				LONG pitch;
 				hr = d_buff->Lock2D(&buffer, &pitch);
 				for (int j = 0; j < 480; j++) {
@@ -184,11 +186,37 @@ bool WmfMediaSource::get_frame_data(PoolVector<uint8_t> &bytevec) {
 						*w++ = 255;
 					}
 				}
+				hr = d_buff->Unlock2D();
+				// frame_read = true;
+				return true;
+			} else if (SUCCEEDED(media_buf->Lock(&buffer, NULL, &CURR_SIZE))) {
+				if (CURR_SIZE == (854 * 3 * 480))
+					printf("it fits yay!!");
+				for (int j = 0; j < 480; j++) {
+					for (int i = 0; i < 854; i++) {
+						*w++ = *(buffer + i);
+						*w++ = *(buffer + 1 + i);
+						*w++ = *(buffer + 2 + i);
+						*w++ = 255;
+					}
+				}
+				print_line("step 4");				
+				media_buf->Unlock();
 				return true;
 			}
 		}
 	}
-	frame_read = true;
+	PoolVector<uint8_t>::Write wrt = bytevec.write();
+	uint8_t *w = wrt.ptr();
+	for (int j = 0; j < 480; j++) {
+		for (int i = 0; i < 854; i++) {
+			// MAGENTA LIKE COLOR
+			*w++ = 220;
+			*w++ = 50;
+			*w++ = 220;
+			*w++ = 255;
+		}
+	}
 	return true;
 }
 
@@ -251,7 +279,7 @@ bool WmfMediaSource::set_media_output_type(short type) {
 /////Video_PLayback/////
 ////////////////////////
 
-VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
+VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() : texture(memnew(ImageTexture)) {
     source = new WmfMediaSource();
 }
 VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
@@ -262,8 +290,8 @@ VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
 bool VideoStreamPlaybackWmf::open_file(const String &p_file) {
     String st = ProjectSettings::get_singleton()->globalize_path(p_file);
 	if (source->create_source(st)) {
-		print_line(String::num_int64(source->get_width()) + ", " + String::num_int64(source->get_height()));
-		frame_data.resize((854 * 480) * 4); // 4 values r,g,b,a    
+		frame_data.resize((source->get_width() * source->get_height()) * 4); // 4 values r,g,b,a
+		texture->create(source->get_width(), source->get_height(), Image::FORMAT_RGBA8, Texture::FLAG_FILTER | Texture::FLAG_VIDEO_SURFACE);
 		return true;
 	}
 	return false;
@@ -343,7 +371,7 @@ void VideoStreamPlaybackWmf::set_audio_track(int p_idx) {
 }
 
 Ref<Texture> VideoStreamPlaybackWmf::get_texture() {
-	return Ref<Texture>();
+	return texture;
 }
 
 void VideoStreamPlaybackWmf::update(float p_delta) {
@@ -412,23 +440,16 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 	bool video_frame_done = false;
 	video_frames_pos = 4;
 	while (video_frames_pos > 0 && !video_frame_done) {
-
 		if (source->move_frame()) {
-			// The Media Output Format is RGB8
-			// ensure the source frame_data output type is RGB8
-			source->set_media_output_type(WmfMediaSource::MediaOutputType::OUTPUT_FLAG_RGB8);
-			// let alpha be 0
-
 			// get the frame data from the source
 			if (source->get_frame_data(frame_data)) {
 				Ref<Image> img = memnew(Image(854, 480, 0, Image::FORMAT_RGBA8, frame_data));
-				texture->set_data(img); // zero copy send to visual server
+ 				texture->set_data(img); // zero copy send to visual server
 				video_frame_done = true;
 			}
 		}
-		// this loop won't work.... :(
 		video_pos = source->get_frame_time();
-		video_frames_pos--; // ? not sure what's the use of this one
+		video_frames_pos--;
 	}
 
 	if (video_frames_pos == 0 && source->has_ended())
@@ -437,7 +458,7 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 
 void VideoStreamPlaybackWmf::set_mix_callback(AudioMixCallback p_callback, void *p_userdata) {}
 int VideoStreamPlaybackWmf::get_channels() const { return 1; }
-int VideoStreamPlaybackWmf::get_mix_rate() const { return 0; }
+int VideoStreamPlaybackWmf::get_mix_rate() const { return 92; }
 
 
 ////////////////////////
