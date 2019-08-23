@@ -68,16 +68,20 @@ void WmfMediaSource::_process_width_height() {
 	IMFMediaType *p_type;
 	reader->GetCurrentMediaType(0, &p_type); // I am guessing stream 0 is the video stream if it's not well atleast no one died
 	MFGetAttributeSize(p_type, MF_MT_FRAME_SIZE, &width, &height);
+	width = 854;
+	height = 480;
 }
 
 WmfMediaSource::WmfMediaSource() {
 	ended = false;
 	reader = NULL;
+	// Initialize the Media Foundation platform.
 	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
 	// if succeeded in the last operation
-	if (SUCCEEDED(hr)) // Initialize the Media Foundation platform.
+	if (SUCCEEDED(hr)) {
 		hr = MFStartup(MF_VERSION);
+	}
 
 	frame_read = false;
 	current_frame_count = 0;
@@ -87,9 +91,8 @@ WmfMediaSource::WmfMediaSource(const String &path, short type_flags) {
 	reader = NULL;
 	ended = false;
 	// Initialize the COM library.
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	frame_read = true;
-
 	// if succeeded in the last operation
 	if (SUCCEEDED(hr)) {
 		// Initialize the Media Foundation platform.
@@ -108,6 +111,12 @@ WmfMediaSource::WmfMediaSource(const String &path, short type_flags) {
 
 WmfMediaSource::~WmfMediaSource() {
 	ended = true;
+	if (reader)
+		reader->Release();
+	if (sample)
+		sample->Release();
+	if (outputType)
+		outputType->Release();
 	MFShutdown();
 	CoUninitialize();
 }
@@ -117,14 +126,15 @@ bool WmfMediaSource::create_source(const String &path) {
 	// plan some IMFAttributes that might need to be added
 	reader = NULL;
 	ended = false;
+	frame_read = true;
 
-	if (SUCCEEDED(MFCreateSourceReaderFromURL(path_wchar, NULL, &reader))) {
+	HRESULT hr = MFCreateSourceReaderFromURL(path.c_str(), NULL, &reader);
+	if (SUCCEEDED(hr)) {
 		frame_read = false;
 		current_frame_count = 0;
 		_process_width_height();
 		return true;
 	}
-	frame_read = true;
 	return false;
 }
 
@@ -161,31 +171,25 @@ bool WmfMediaSource::get_frame_data(PoolVector<uint8_t> &bytevec) {
 			IMF2DBuffer *d_buff;
 			hr = media_buf->QueryInterface<IMF2DBuffer>(&d_buff);
 			if (SUCCEEDED(hr)) {
-				BOOL iscontigous = 0;
-				hr = d_buff->IsContiguousFormat(&iscontigous);
-				if (SUCCEEDED(hr)) {
-					// use the Lock2D if the isContigous is true
-					// otherwise use Lock which is slower but guarantees contigous memory 
-					if (iscontigous) {
-						BYTE *buffer;
-						LONG pitch;
-						hr = d_buff->Lock2D(&buffer, &pitch);
-						for (int j = 0; j < height; j++) {
-							for (int i = 0; i < width; i++) {
-								*(++w) = *(buffer + 3 * i + pitch * j);
-								*(++w) = *(buffer + 1 + 3 * i + pitch * j);
-								*(++w) = *(buffer + 2 + 3 * i + pitch * j);
-								*(++w) = 255; // No Alpha in Video itself I would presume
-							}
-						}
-						return true;
+				// use the Lock2D if the isContigous is true
+				// otherwise use Lock which is slower but guarantees contigous memory 
+				BYTE *buffer;
+				LONG pitch;
+				hr = d_buff->Lock2D(&buffer, &pitch);
+				for (int j = 0; j < 480; j++) {
+					for (int i = 0; i < 854; i++) {
+						*w++ = *(buffer + pitch * j);
+						*w++ = *(buffer + 1 + pitch * j);
+						*w++ = *(buffer + 2 + pitch * j);
+						*w++ = 255;
 					}
 				}
+				return true;
 			}
 		}
 	}
 	frame_read = true;
-	return false;
+	return true;
 }
 
 bool WmfMediaSource::move_frame(float time = 0, bool forward = true) {
@@ -231,12 +235,14 @@ bool WmfMediaSource::has_ended() const {
 
 bool WmfMediaSource::set_media_output_type(short type) {
 	// change the media output type
-	// TODO: allow options but Godot Textures use RGBA8 so not sure if I will even do any of it.. :/
 	HRESULT hr = MFCreateMediaType(&outputType);
 	if (SUCCEEDED(hr)) {
 		hr = outputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
-		if (SUCCEEDED(hr))
+		if (SUCCEEDED(hr)) {
 			hr = outputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB8);
+			reader->SetCurrentMediaType(0, NULL, outputType);
+			return true;		
+		}
 	}
 	return false;
 }
@@ -246,7 +252,7 @@ bool WmfMediaSource::set_media_output_type(short type) {
 ////////////////////////
 
 VideoStreamPlaybackWmf::VideoStreamPlaybackWmf() {
-    source = (WmfMediaSource *)malloc(sizeof(WmfMediaSource));
+    source = new WmfMediaSource();
 }
 VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
 	if (source)
@@ -256,7 +262,8 @@ VideoStreamPlaybackWmf::~VideoStreamPlaybackWmf() {
 bool VideoStreamPlaybackWmf::open_file(const String &p_file) {
     String st = ProjectSettings::get_singleton()->globalize_path(p_file);
 	if (source->create_source(st)) {
-		frame_data.resize((source->get_width() * source->get_height()) << 2); // 4 values r,g,b,a    
+		print_line(String::num_int64(source->get_width()) + ", " + String::num_int64(source->get_height()));
+		frame_data.resize((854 * 480) * 4); // 4 values r,g,b,a    
 		return true;
 	}
 	return false;
@@ -273,7 +280,7 @@ void VideoStreamPlaybackWmf::stop() {
 		// audio_frame = NULL;
 		// video_frames = NULL;
 
-		frame_data.resize(0);
+		// frame_data.resize(0);
 
 		// video = NULL;
 		// audio = NULL;
@@ -295,6 +302,7 @@ void VideoStreamPlaybackWmf::play() {
 	delay_compensation /= 1000.0;
 
 	playing = true;
+	paused = false;
 }
 
 bool VideoStreamPlaybackWmf::is_playing() const {
@@ -319,7 +327,7 @@ bool VideoStreamPlaybackWmf::has_loop() const {
 }
 
 float VideoStreamPlaybackWmf::get_length() const {
-    return 0.0;
+    return 50.0;
 }
 
 float VideoStreamPlaybackWmf::get_playback_position() const {
@@ -335,7 +343,7 @@ void VideoStreamPlaybackWmf::set_audio_track(int p_idx) {
 }
 
 Ref<Texture> VideoStreamPlaybackWmf::get_texture() {
-    return Ref<Texture>();
+	return Ref<Texture>();
 }
 
 void VideoStreamPlaybackWmf::update(float p_delta) {
@@ -413,7 +421,7 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 
 			// get the frame data from the source
 			if (source->get_frame_data(frame_data)) {
-				Ref<Image> img = memnew(Image(source->get_width(), source->get_height(), 0, Image::FORMAT_RGBA8, frame_data));
+				Ref<Image> img = memnew(Image(854, 480, 0, Image::FORMAT_RGBA8, frame_data));
 				texture->set_data(img); // zero copy send to visual server
 				video_frame_done = true;
 			}
@@ -428,7 +436,7 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 }
 
 void VideoStreamPlaybackWmf::set_mix_callback(AudioMixCallback p_callback, void *p_userdata) {}
-int VideoStreamPlaybackWmf::get_channels() const { return 3; }
+int VideoStreamPlaybackWmf::get_channels() const { return 1; }
 int VideoStreamPlaybackWmf::get_mix_rate() const { return 0; }
 
 
@@ -443,8 +451,9 @@ VideoStreamWmf::VideoStreamWmf() {
 
 Ref<VideoStreamPlayback> VideoStreamWmf::instance_playback() {
     Ref<VideoStreamPlaybackWmf> vw = memnew(VideoStreamPlaybackWmf);
-    if (vw.is_valid() && vw->open_file(file))
-        return vw;
+    if (vw.is_valid() && vw->open_file(file)) {
+	    return vw;
+	}
     return NULL;
 }
 
