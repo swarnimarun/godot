@@ -35,33 +35,23 @@
 #include "scene/resources/video_stream.h"
 
 #include <windows.h>
+#include <guiddef.h>
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
-#include <stdio.h>
 #include <mferror.h>
+#include <propvarutil.h>
+#include <mfplay.h>
+#include <mfobjects.h>
+#include <tchar.h>
+#include <strsafe.h>
+#include <stdio.h>
 
-
-// WMF Ptr with convenience features
-template <class T>
-class WMFPtr {
-    T *p; // internally held pointer 
-public:
-	WMFPtr() {}
-    WMFPtr(T *ptr) {
-        p = ptr;
-    }
-    WMFPtr(const WMFPtr<T> &pt) {
-        p = pt.p;
-    }
-    void release() { p->Release(); }
-    bool is_valid() const  {
-        return p != NULL;
-    }
-    T *ptr() const { return p; }
-    // ? QueryInterface cast operation ?
-};
-// use WMFPtrs in the delete pointers function
+// TODO: add for HW Acceleration
+#ifdef HAVE_MSMF_DXVA
+#include <d3d11.h>
+#include <d3d11_4.h>
+#endif
 
 class MediaType {
     IMFMediaType *type;
@@ -115,61 +105,24 @@ private:
     }
 
     bool configure() {
+		// don't hard code it
         width = 854;
 		height = 480;
-        DWORD s_idx = 0, cnt = 0;
-        IMFMediaType *n_type;
-        GUID major_type, subtype;
-        MediaType best_media;
-		HRESULT hr;
-        while (true) {
-			hr = reader->GetNativeMediaType(s_idx, cnt, &n_type);
-			if (hr == MF_E_NO_MORE_TYPES) {
-				s_idx++;
-				cnt = 0;
-				hr = S_OK;
-				continue;
-			}
-			if (SUCCEEDED(hr)) {
-				if (SUCCEEDED(hr = n_type->GetGUID(MF_MT_MAJOR_TYPE, &major_type)) && SUCCEEDED(hr = n_type->GetGUID(MF_MT_SUBTYPE, &subtype))) {
-					if (major_type == MFMediaType_Video) {
-			     	    print_line("selecting best stream");
-						// find the closest media to the width and height required
-						MediaType media(n_type, s_idx);
-						if (best_media.stream < 0 ||
-						media.compare(width, height) < best_media.compare(width, height) ||
-						(media.compare(width, height) == best_media.compare(width, height) && media.width > best_media.width) ||
-						(media.compare(width, height) == best_media.compare(width, height) && media.width == best_media.width && media.height > best_media.height)) {
-							best_media = media;
-							best_media.stream = s_idx;
-						}
-					}
-				}
-			} else {
-				break;
-			}
-			cnt += 1;
-        }
 		IMFMediaType *media_type;
 		if (SUCCEEDED(MFCreateMediaType(&media_type)) &&
 			SUCCEEDED(media_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)) &&
-			SUCCEEDED(media_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB8)) &&
+			SUCCEEDED(media_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB24)) &&
 			SUCCEEDED(media_type->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive)) &&
-			SUCCEEDED(MFSetAttributeSize(media_type, MF_MT_FRAME_SIZE, best_media.width, best_media.height)) &&
-			SUCCEEDED(media_type->SetUINT32(MF_MT_FIXED_SIZE_SAMPLES, 1)) &&
-			SUCCEEDED(media_type->SetUINT32(MF_MT_SAMPLE_SIZE, best_media.height * best_media.width * 3)) &&
-			SUCCEEDED(media_type->SetUINT32(MF_MT_DEFAULT_STRIDE, best_media.width * 3))
+			SUCCEEDED(MFSetAttributeSize(media_type, MF_MT_FRAME_SIZE, width, height))
 			) {
 			// created media type with values setup
 			if (
-				SUCCEEDED(reader->SetStreamSelection((DWORD)MF_SOURCE_READER_ALL_STREAMS, false)) &&
-				SUCCEEDED(reader->SetStreamSelection((DWORD)best_media.stream, true)) &&
-				SUCCEEDED(reader->SetCurrentMediaType((DWORD)best_media.stream, NULL, media_type))) {
+				SUCCEEDED(reader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, NULL, media_type))) {
 				// setup all the extra variables
-				streamIndex = best_media.stream;
+				streamIndex = MF_SOURCE_READER_FIRST_VIDEO_STREAM;
 				print_line("successfully setup stream");
 			}
-			streamIndex = best_media.stream;
+			streamIndex = MF_SOURCE_READER_FIRST_VIDEO_STREAM;
 		} else { return false; }
 		return true;
     }
@@ -198,12 +151,20 @@ public:
     bool create_source(const String &path) {
         // create the source from the media URL
 	    const wchar_t *path_wchar = path.c_str(); // CharType is wchar_t
-	   HRESULT hr = MFCreateSourceReaderFromURL(path.c_str(), NULL, &reader);
-        if (SUCCEEDED(hr)) {
-            current_frame = 0;
-			if (configure())
-			    return true;
-        }
+		IMFAttributes *srAttr;
+		if (SUCCEEDED(MFCreateAttributes(&srAttr, 10)) &&
+			SUCCEEDED(srAttr->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, true)) &&
+			SUCCEEDED(srAttr->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, false)) &&
+			SUCCEEDED(srAttr->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, false)) &&
+			SUCCEEDED(srAttr->SetUINT32(MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, true))) {
+			// set attributes
+			HRESULT hr = MFCreateSourceReaderFromURL(path.c_str(), srAttr, &reader);
+			if (SUCCEEDED(hr)) {
+				current_frame = 0;
+				if (configure())
+					return true;
+			}
+		}
         return false;
     }
 
@@ -231,7 +192,6 @@ public:
     }
 
     bool get_frame_data(PoolVector<uint8_t> &bytevec) {
-    	print_line("frame data function");
 		{
 			// return the current frame if it's not been read
 			PoolVector<uint8_t>::Write wrt = bytevec.write();
@@ -241,22 +201,21 @@ public:
 			HRESULT hr = frame->ConvertToContiguousBuffer(&media_buf);
 			if (SUCCEEDED(hr)) {
 				// convert to a IMF2DBuffer using the QueryInterface function on MediaBuffer
-				print_line("get the contigous buffer");
 				BYTE *buffer;
 				DWORD CURR_SIZE;
 				IMF2DBuffer *d_buff;
 				hr = media_buf->QueryInterface<IMF2DBuffer>(&d_buff);
 				if (SUCCEEDED(hr)) {
-				    print_line("lock 2d interface");
 					// use the Lock2D if the isContigous is true
 					// otherwise use Lock which is slower but guarantees contigous memory
 					LONG pitch;
 					hr = d_buff->Lock2D(&buffer, &pitch);
-					for (int j = 0; j < 480; j++) {
-						for (int i = 0; i < 854; i++) {
-							*w++ = *(buffer + i + pitch * j);
-							*w++ = *(buffer + 1 + i + pitch * j);
-							*w++ = *(buffer + 2 + i + pitch * j);
+				    print_line("pitch of 2D video " + String::num_int64(pitch));
+					for (int j = 0; j < height; j++) {
+						for (int i = 0; i < width; i++) {
+							*w++ = *(buffer + 2 + i * 3 + pitch * j);
+							*w++ = *(buffer + 1 + i * 3 + pitch * j);
+							*w++ = *(buffer + i * 3 + pitch * j);
 							*w++ = 255;
 						}
 					}
@@ -264,7 +223,6 @@ public:
 					// frame_read = true;
 					return true;
 				} else if (SUCCEEDED(media_buf->Lock(&buffer, NULL, &CURR_SIZE))) {
-				    print_line("get the frame data " + String::num_uint64(CURR_SIZE));
 					if (CURR_SIZE >= (width * height * 3)) {
 						for (int j = 0; j < height; j++) {
 							for (int i = 0; i < width * 3; i = i + 3) {
@@ -277,34 +235,11 @@ public:
 					    media_buf->Unlock();
 					    return true;
 					}
-						for (int j = 0; j < height; j++) {
-							for (int i = 0; i < width * 3; i = i + 3) {
-								*w++ = *(buffer + (j > CURR_SIZE ? CURR_SIZE : j) );
-								*w++ = *(buffer + (j > CURR_SIZE ? CURR_SIZE : j) );
-								*w++ = *(buffer + (j > CURR_SIZE ? CURR_SIZE : j) );
-								*w++ = 255;
-							}
-						}					
 					media_buf->Unlock();
-				    return true;
 				}
 			}
 		}
-		{
-			print_line("clear the screen with magenta like color");
-			PoolVector<uint8_t>::Write wrt = bytevec.write();
-			uint8_t *w = wrt.ptr();
-			for (int j = 0; j < 480; j++) {
-				for (int i = 0; i < 854; i++) {
-					// MAGENTA LIKE COLOR
-					*w++ = 220;
-					*w++ = 50;
-					*w++ = 220;
-					*w++ = 255;
-				}
-			}
-		}
-        return true;
+        return false;
     }
 
 

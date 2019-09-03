@@ -209,7 +209,7 @@ def configure_msvc(env, manual_msvc_config):
                                    'WASAPI_ENABLED', 'WINMIDI_ENABLED',
                                    'TYPED_METHOD_BIND',
                                    'WIN32', 'MSVC',
-                                   'WINVER=%s' % env["target_win_version"],
+                                   'WINVER=_WIN32_WINNT_WIN8',
                                    '_WIN32_WINNT=%s' % env["target_win_version"]])
     env.AppendUnique(CPPDEFINES=['NOMINMAX']) # disable bogus min/max WinDef.h macros
     if env["bits"] == "64":
@@ -329,7 +329,7 @@ def configure_mingw(env):
 
     env.Append(CCFLAGS=['-mwindows'])
     env.Append(CPPDEFINES=['WINDOWS_ENABLED', 'OPENGL_ENABLED', 'WASAPI_ENABLED', 'WINMIDI_ENABLED'])
-    env.Append(CPPDEFINES=[('WINVER', env['target_win_version']), ('_WIN32_WINNT', env['target_win_version'])])
+    env.Append(CPPDEFINES=[('WINVER', '_WIN32_WINNT_WIN8'), ('_WIN32_WINNT', env['target_win_version'])])
     env.Append(LIBS=['mingw32', 'opengl32', 'dsound', 'ole32', 'd3d9', 'winmm', 'gdi32', 'iphlpapi', 'shlwapi', 'wsock32', 'ws2_32', 'kernel32', 'oleaut32', 'dinput8', 'dxguid', 'ksuser', 'imm32', 'bcrypt', 'avrt', 'uuid'])
 
     env.Append(CPPDEFINES=['MINGW_ENABLED'])

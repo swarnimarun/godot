@@ -4,8 +4,6 @@
 #include "core/os/os.h"
 #include "core/project_settings.h"
 
-#include "propvarutil.h"
-
 ////////////////////////
 /////Video_PLayback/////
 ////////////////////////
@@ -173,7 +171,6 @@ void VideoStreamPlaybackWmf::update(float p_delta) {
 	while (video_frames_pos > 0 && !video_frame_done) {
 		if (source->move_frame()) {
 			// get the frame data from the source
-			print_line("test");
 			if (source->get_frame_data(frame_data)) {
 				Ref<Image> img = memnew(Image(854, 480, 0, Image::FORMAT_RGBA8, frame_data));
 				texture->set_data(img); // zero copy send to visual server
