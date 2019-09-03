@@ -53,40 +53,6 @@
 #include <d3d11_4.h>
 #endif
 
-class MediaType {
-    IMFMediaType *type;
-    // hold lots of direct values
-public:
-    UINT32 width, height; // resolution
-    DWORD stream;
-    // for convenince media type ops
-    MediaType() {
-        width = 0;
-        height = 0;
-        stream = 0;
-    }
-    MediaType(IMFMediaType *p_type, DWORD p_stream) {
-        type = p_type;
-        width = 0;
-        height = 0;
-        stream = p_stream;
-        // setup width and height
-        MFGetAttributeSize(type, MF_MT_FRAME_SIZE, &width, &height);
-        // print the values you want to
-        // printf("Size: (%u, %u) \n", width, height);
-    }
-    void release() {
-        ERR_FAIL_COND(!type);
-        type->Release();
-    }
-    int compare(int t_width, int t_height) {
-        // check which one of the two is larger
-        int w = t_width == 0 ? 0 : width > t_width ? width - t_width : t_width - width;
-        int h = t_height == 0 ? 0 : height > t_height ? height - t_height : t_height - height;
-        return w + h;
-    }
-};
-
 class WMFVideo {
     IMFSourceReader *reader;
     IMFSample *frame;
@@ -111,7 +77,7 @@ private:
 		IMFMediaType *media_type;
 		if (SUCCEEDED(MFCreateMediaType(&media_type)) &&
 			SUCCEEDED(media_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)) &&
-			SUCCEEDED(media_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB24)) &&
+			SUCCEEDED(media_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB24)) && // seemingly not working properly with RGB8
 			SUCCEEDED(media_type->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive)) &&
 			SUCCEEDED(MFSetAttributeSize(media_type, MF_MT_FRAME_SIZE, width, height))
 			) {
