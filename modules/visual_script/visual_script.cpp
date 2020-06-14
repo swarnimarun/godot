@@ -163,7 +163,7 @@ VisualScriptNodeInstance::~VisualScriptNodeInstance() {
 	}
 }
 
-void VisualScript::add_function(const StringName &p_name) {
+void VisualScript::add_function(const StringName &p_name, int func_node_id) {
 	ERR_FAIL_COND(instances.size());
 	ERR_FAIL_COND(!String(p_name).is_valid_identifier());
 	ERR_FAIL_COND(functions.has(p_name));
@@ -171,6 +171,7 @@ void VisualScript::add_function(const StringName &p_name) {
 	ERR_FAIL_COND(custom_signals.has(p_name));
 
 	functions[p_name] = Function();
+	functions[p_name].func_id = func_node_id;
 	// TODO: initialize other values
 }
 
@@ -181,6 +182,7 @@ void VisualScript::remove_function(const StringName &p_name) {
 	ERR_FAIL_COND(instances.size());
 	ERR_FAIL_COND(!functions.has(p_name));
 	functions.erase(p_name);
+	// remove function node and function ret node as well
 }
 
 void VisualScript::rename_function(const StringName &p_name, const StringName &p_new_name) {
@@ -965,7 +967,7 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 	}
 
 	Array nodes = d["nodes"];
-	for (int i = 0; i < nodes.size(); i+=3) {
+	for (int i = 0; i < nodes.size(); i += 3) {
 		add_node(nodes[i], nodes[i + 2], nodes[i + 1]);
 	}
 
@@ -1071,7 +1073,7 @@ void VisualScript::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_function_scroll"), &VisualScript::get_scroll);
 
 	ClassDB::bind_method(D_METHOD("add_node", "id", "node", "position"), &VisualScript::add_node, DEFVAL(Point2()));
-	ClassDB::bind_method(D_METHOD("remove_node","id"), &VisualScript::remove_node);
+	ClassDB::bind_method(D_METHOD("remove_node", "id"), &VisualScript::remove_node);
 	ClassDB::bind_method(D_METHOD("get_function_node_id", "name"), &VisualScript::get_function_node_id);
 
 	ClassDB::bind_method(D_METHOD("get_node", "id"), &VisualScript::get_node);
@@ -1787,7 +1789,7 @@ Ref<Script> VisualScriptInstance::get_script() const {
 
 MultiplayerAPI::RPCMode VisualScriptInstance::get_rpc_mode(const StringName &p_method) const {
 	auto fn = script->functions[p_method];
-	
+
 	if (fn.func_id == -1) {
 		return MultiplayerAPI::RPC_MODE_DISABLED;
 	}

@@ -273,7 +273,7 @@ public:
 	/**********************************************************/
 	/*                     Functions
 	/**********************************************************/
-	void add_function(const StringName &p_name);
+	void add_function(const StringName &p_name, int func_node_id);
 	bool has_function(const StringName &p_name) const;
 	void remove_function(const StringName &p_name);
 	void rename_function(const StringName &p_name, const StringName &p_new_name);
