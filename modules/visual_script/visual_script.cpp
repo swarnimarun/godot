@@ -1881,28 +1881,40 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				max_input_args = MAX(max_input_args, function.argument_count);
 			}
 			// function nodes graphs
-			Map<int, VisualScript::NodeData> nodes;
 			Set<VisualScript::SequenceConnection> seqconns;
-			Set<VisualScript::DataConnection> dataconns;
-			for (const Set<VisualScript::SequenceConnection>::Element *F = script->sequence_connections.front(); F; F = F->next()) {
-				// TODO >>>
-				// get the sequence tree of the function -> Sequence connections of the function
-				// get the nodes in the sequence tree of the function
-				// TODO <<<
+			Set<VisualScript::DataConnection> dataconns; // TODO: Fill up data connections list
+			Set<int> node_ids;
+			node_ids.insert(function.node);
+			{
+				List<int> nd_queue;
+				nd_queue.push_back(function.node);
+				while (!nd_queue.empty()) {
+					for (const Set<VisualScript::SequenceConnection>::Element *F = script->sequence_connections.front(); F; F = F->next()) {
+						if (nd_queue.front()->get() == F->get().from_node && !node_ids.has(F->get().to_node)) {
+							nd_queue.push_back(F->get().to_node);
+							node_ids.insert(F->get().to_node);
+						}
+						if (nd_queue.front()->get() == F->get().from_node && !seqconns.has(F->get())) {
+							seqconns.insert(F->get());
+						}
+					}
+					nd_queue.pop_front();
+				}
+				// TODO: Add nodes that are linked via data connections
 			}
 
 			//multiple passes are required to set up this complex thing..
 			//first create the nodes
-			for (const Map<int, VisualScript::NodeData>::Element *F = nodes.front(); F; F = F->next()) {
+			for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
 
-				Ref<VisualScriptNode> node = F->get().node;
+				Ref<VisualScriptNode> node = script->nodes[F->get()].node;
 
 				VisualScriptNodeInstance *instance = node->instance(this); //create instance
 				ERR_FAIL_COND(!instance);
 
 				instance->base = node.ptr();
 
-				instance->id = F->key();
+				instance->id = F->get();
 				instance->input_port_count = node->get_input_value_port_count();
 				instance->input_ports = NULL;
 				instance->output_port_count = node->get_output_value_port_count();
@@ -1962,7 +1974,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				max_input_args = MAX(max_input_args, instance->input_port_count);
 				max_output_args = MAX(max_output_args, instance->output_port_count);
 
-				instances[F->key()] = instance;
+				instances[F->get()] = instance;
 			}
 
 			function.trash_pos = function.max_stack++; // create pos for trash
@@ -2010,11 +2022,11 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			//fourth pass:
 			// 1) unassigned input ports to default values
 			// 2) connect unassigned output ports to trash
-			for (const Map<int, VisualScript::NodeData>::Element *F = nodes.front(); F; F = F->next()) {
-				ERR_CONTINUE(!instances.has(F->key()));
+			for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
+				ERR_CONTINUE(!instances.has(F->get()));
 
-				Ref<VisualScriptNode> node = F->get().node;
-				VisualScriptNodeInstance *instance = instances[F->key()];
+				Ref<VisualScriptNode> node = script->nodes[F->get()].node;
+				VisualScriptNodeInstance *instance = instances[F->get()];
 
 				// connect to default values
 				for (int i = 0; i < instance->input_port_count; i++) {
