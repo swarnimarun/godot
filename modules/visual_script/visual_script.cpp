@@ -118,6 +118,9 @@ void VisualScriptNode::_bind_methods() {
 }
 
 VisualScriptNode::TypeGuess VisualScriptNode::guess_output_type(TypeGuess *p_inputs, int p_output) const {
+
+	ERR_FAIL_COND_V(get_output_value_port_count() <= p_output, TypeGuess());
+
 	PropertyInfo pinfo = get_output_value_port_info(p_output);
 
 	TypeGuess tg;
@@ -182,7 +185,7 @@ void VisualScript::remove_function(const StringName &p_name) {
 	ERR_FAIL_COND(instances.size());
 	ERR_FAIL_COND(!functions.has(p_name));
 	functions.erase(p_name);
-	// remove function node and function ret node as well
+	// remove function node
 }
 
 void VisualScript::rename_function(const StringName &p_name, const StringName &p_new_name) {
@@ -681,9 +684,17 @@ void VisualScript::get_custom_signal_list(List<StringName> *r_custom_signals) co
 }
 
 int VisualScript::get_available_id() const {
-	// TODO
-	// Add some way to give a valid id for nodes
-	return 0;
+	// !Don't optimize it as get_available_id can be called when new nodes are being remapped from old nodes
+	// !also because undo can cause issues, if we wish to keep the node_ids same after undo
+	List<int> nds;
+	nodes.get_key_list(&nds);
+	int max = -1;
+	for (const List<int>::Element *E = nds.front(); E; E = E->next()) {
+		if (E->get() > max) {
+			max = E->get();
+		}
+	}
+	return (max + 1);
 }
 
 /////////////////////////////////
@@ -960,10 +971,7 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 
 	for (int i = 0; i < funcs.size(); i++) {
 		Dictionary func = funcs[i];
-		StringName name = func["name"];
-		StringName name = func["name"];
-		StringName name = func["name"];
-		add_function(name);
+		add_function(func["name"], func["function_id"]);
 	}
 
 	Array nodes = d["nodes"];
@@ -1026,7 +1034,9 @@ Dictionary VisualScript::_get_data() const {
 		Dictionary func;
 		func["name"] = E->get();
 		func["function_id"] = functions[E->get()].func_id;
-		func["function_return_node_id"] = functions[E->get()].func_ret_id;
+		funcs.push_back(func);
+		// TODO: Figure out if this a good thing to do
+		// func["function_return_node_id"] = functions[E->get()].func_ret_id;
 	}
 	d["functions"] = funcs;
 	d["is_tool_script"] = is_tool_script;
@@ -1062,10 +1072,10 @@ Dictionary VisualScript::_get_data() const {
 }
 
 void VisualScript::_bind_methods() {
-	// !TODO: Fix All functions here
+	// !TODO: Verify all of these have been fixed
 	ClassDB::bind_method(D_METHOD("_node_ports_changed"), &VisualScript::_node_ports_changed);
 
-	ClassDB::bind_method(D_METHOD("add_function", "name"), &VisualScript::add_function);
+	ClassDB::bind_method(D_METHOD("add_function", "name", "function_id"), &VisualScript::add_function);
 	ClassDB::bind_method(D_METHOD("has_function", "name"), &VisualScript::has_function);
 	ClassDB::bind_method(D_METHOD("remove_function", "name"), &VisualScript::remove_function);
 	ClassDB::bind_method(D_METHOD("rename_function", "name", "new_name"), &VisualScript::rename_function);
@@ -1788,13 +1798,14 @@ Ref<Script> VisualScriptInstance::get_script() const {
 }
 
 MultiplayerAPI::RPCMode VisualScriptInstance::get_rpc_mode(const StringName &p_method) const {
-	auto fn = script->functions[p_method];
+	const VisualScript::Function fn = script->functions[p_method];
 
 	if (fn.func_id == -1) {
 		return MultiplayerAPI::RPC_MODE_DISABLED;
 	}
 
-	if (Ref<VisualScriptFunction> vsf = script->nodes[fn.func_id].node; vsf.is_valid()) {
+	Ref<VisualScriptFunction> vsf = script->nodes[fn.func_id].node;
+	if (vsf.is_valid()) {
 		return vsf->get_rpc_mode();
 	}
 
@@ -1874,7 +1885,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			Map<int, VisualScript::NodeData> nodes;
 			Set<VisualScript::SequenceConnection> seqconns;
 			Set<VisualScript::DataConnection> dataconns;
-			for (const Set<VisualScript::SequenceConnection>::Element *E = script->sequence_connections.front(); E; E = E->next()) {
+			for (const Set<VisualScript::SequenceConnection>::Element *F = script->sequence_connections.front(); F; F = F->next()) {
 				// TODO >>>
 				// get the sequence tree of the function -> Sequence connections of the function
 				// get the nodes in the sequence tree of the function

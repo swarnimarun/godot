@@ -270,9 +270,7 @@ protected:
 public:
 	void set_scroll(const Vector2 &p_scroll);
 	Vector2 get_scroll() const;
-	/**********************************************************/
-	/*                     Functions
-	/**********************************************************/
+
 	void add_function(const StringName &p_name, int func_node_id);
 	bool has_function(const StringName &p_name) const;
 	void remove_function(const StringName &p_name);
@@ -282,9 +280,6 @@ public:
 	int get_function_ret_node_id(const StringName &p_name) const;
 	void set_tool_enabled(bool p_enabled);
 
-	/**********************************************************/
-	/*                       Nodes
-	/**********************************************************/
 	void add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2());
 	void remove_node(int p_id);
 	bool has_node(int p_id) const;
@@ -293,9 +288,6 @@ public:
 	Point2 get_node_position(int p_id) const;
 	void get_node_list(List<int> *r_nodes) const;
 
-	/**********************************************************/
-	/*                    Connections
-	/**********************************************************/
 	void sequence_connect(int p_from_node, int p_from_output, int p_to_node);
 	void sequence_disconnect(int p_from_node, int p_from_output, int p_to_node);
 	bool has_sequence_connection(int p_from_node, int p_from_output, int p_to_node) const;
@@ -310,9 +302,6 @@ public:
 	bool is_input_value_port_connected(int p_node, int p_port) const;
 	bool get_input_value_port_connection_source(int p_node, int p_port, int *r_node, int *r_port) const;
 
-	/**********************************************************/
-	/*                     Variables
-	/**********************************************************/
 	// TODO: Add more types of variables such as
 	// TODO:--  scene variables, singletons, and script local variables w/o export
 	void add_variable(const StringName &p_name, const Variant &p_default_value = Variant(), bool p_export = false);
@@ -327,9 +316,6 @@ public:
 	void get_variable_list(List<StringName> *r_variables) const;
 	void rename_variable(const StringName &p_name, const StringName &p_new_name);
 
-	/**********************************************************/
-	/*                     Signals
-	/**********************************************************/
 	void add_custom_signal(const StringName &p_name);
 	bool has_custom_signal(const StringName &p_name) const;
 	void custom_signal_add_argument(const StringName &p_func, Variant::Type p_type, const String &p_name, int p_index = -1);
@@ -345,9 +331,6 @@ public:
 
 	void get_custom_signal_list(List<StringName> *r_custom_signals) const;
 
-	/**********************************************************/
-	/*                   Script Members
-	/**********************************************************/
 	int get_available_id() const;
 
 	void set_instance_base_type(const StringName &p_type);
