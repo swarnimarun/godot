@@ -175,7 +175,6 @@ void VisualScript::add_function(const StringName &p_name, int func_node_id) {
 
 	functions[p_name] = Function();
 	functions[p_name].func_id = func_node_id;
-	// TODO: initialize other values
 }
 
 bool VisualScript::has_function(const StringName &p_name) const {
@@ -1035,8 +1034,6 @@ Dictionary VisualScript::_get_data() const {
 		func["name"] = E->get();
 		func["function_id"] = functions[E->get()].func_id;
 		funcs.push_back(func);
-		// TODO: Figure out if this a good thing to do
-		// func["function_return_node_id"] = functions[E->get()].func_ret_id;
 	}
 	d["functions"] = funcs;
 	d["is_tool_script"] = is_tool_script;
@@ -1155,10 +1152,12 @@ Set<int> VisualScript::get_output_sequence_ports_connected(int from_node) {
 }
 
 VisualScript::~VisualScript() {
-	// !TODO: Remove all nodes and stuff that hold data Refs
-	// while (!functions.empty()) {
-	// 	remove_function(functions.front()->key());
-	// }
+	// Remove all nodes and stuff that hold data refs
+	List<int> nds;
+	nodes.get_key_list(&nds);
+	for (const List<int>::Element *E = nds.front(); E; E = E->next()) {
+		remove_node(E->get());
+	}
 }
 
 ////////////////////////////////////////////

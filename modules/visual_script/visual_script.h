@@ -230,9 +230,7 @@ private:
 
 	struct Function {
 		int func_id;
-		int func_ret_id;
-
-		Function() { func_id = func_ret_id = -1; }
+		Function() { func_id = -1; }
 	};
 
 	struct Variable {
@@ -302,7 +300,7 @@ public:
 	bool is_input_value_port_connected(int p_node, int p_port) const;
 	bool get_input_value_port_connection_source(int p_node, int p_port, int *r_node, int *r_port) const;
 
-	// TODO: Add more types of variables such as
+	// TODO: Add more types of variables such as?
 	// TODO:--  scene variables, singletons, and script local variables w/o export
 	void add_variable(const StringName &p_name, const Variant &p_default_value = Variant(), bool p_export = false);
 	bool has_variable(const StringName &p_name) const;
