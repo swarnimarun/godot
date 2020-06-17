@@ -45,7 +45,7 @@ class VisualScriptNode : public Resource {
 
 	friend class VisualScript;
 
-	Set<VisualScript *> scripts_used;
+	Ref<VisualScript> script_used;
 
 	Array default_input_values;
 	bool breakpoint;
@@ -210,23 +210,21 @@ private:
 		Variant::Type type;
 	};
 
+	struct NodeData {
+		Point2 pos;
+		Ref<VisualScriptNode> node;
+	};
+
+	HashMap<int, NodeData> nodes; // can be a sparse map
+
+	Set<SequenceConnection> sequence_connections;
+	Set<DataConnection> data_connections;
+
+	Vector2 scroll;
+
 	struct Function {
-		struct NodeData {
-			Point2 pos;
-			Ref<VisualScriptNode> node;
-		};
-
-		Map<int, NodeData> nodes;
-
-		Set<SequenceConnection> sequence_connections;
-
-		Set<DataConnection> data_connections;
-
-		int function_id;
-
-		Vector2 scroll;
-
-		Function() { function_id = -1; }
+		int func_id;
+		Function() { func_id = -1; }
 	};
 
 	struct Variable {
@@ -236,8 +234,9 @@ private:
 		// add getter & setter options here
 	};
 
-	Map<StringName, Function> functions;
-	Map<StringName, Variable> variables;
+	// hashmap hasher uses the StringName.hash
+	HashMap<StringName, Function> functions;
+	HashMap<StringName, Variable> variables;
 	Map<StringName, Vector<Argument>> custom_signals;
 	Vector<ScriptNetData> rpc_functions;
 	Vector<ScriptNetData> rpc_variables;
@@ -266,37 +265,38 @@ protected:
 public:
 	bool inherits_script(const Ref<Script> &p_script) const override;
 
-	// TODO: Remove it in future when breaking changes are acceptable
-	StringName get_default_func() const;
-	void add_function(const StringName &p_name);
+	void set_scroll(const Vector2 &p_scroll);
+	Vector2 get_scroll() const;
+
+	void add_function(const StringName &p_name, int func_node_id);
 	bool has_function(const StringName &p_name) const;
 	void remove_function(const StringName &p_name);
 	void rename_function(const StringName &p_name, const StringName &p_new_name);
-	void set_function_scroll(const StringName &p_name, const Vector2 &p_scroll);
-	Vector2 get_function_scroll(const StringName &p_name) const;
 	void get_function_list(List<StringName> *r_functions) const;
 	int get_function_node_id(const StringName &p_name) const;
 	void set_tool_enabled(bool p_enabled);
 
-	void add_node(const StringName &p_func, int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2());
-	void remove_node(const StringName &p_func, int p_id);
-	bool has_node(const StringName &p_func, int p_id) const;
-	Ref<VisualScriptNode> get_node(const StringName &p_func, int p_id) const;
-	void set_node_position(const StringName &p_func, int p_id, const Point2 &p_pos);
-	Point2 get_node_position(const StringName &p_func, int p_id) const;
-	void get_node_list(const StringName &p_func, List<int> *r_nodes) const;
+	void add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2());
+	void remove_node(int p_id);
+	bool has_node(int p_id) const;
+	Ref<VisualScriptNode> get_node(int p_id) const;
+	void set_node_position(int p_id, const Point2 &p_pos);
+	Point2 get_node_position(int p_id) const;
+	void get_node_list(List<int> *r_nodes) const;
 
-	void sequence_connect(const StringName &p_func, int p_from_node, int p_from_output, int p_to_node);
-	void sequence_disconnect(const StringName &p_func, int p_from_node, int p_from_output, int p_to_node);
-	bool has_sequence_connection(const StringName &p_func, int p_from_node, int p_from_output, int p_to_node) const;
-	void get_sequence_connection_list(const StringName &p_func, List<SequenceConnection> *r_connection) const;
+	void sequence_connect(int p_from_node, int p_from_output, int p_to_node);
+	void sequence_disconnect(int p_from_node, int p_from_output, int p_to_node);
+	bool has_sequence_connection(int p_from_node, int p_from_output, int p_to_node) const;
+	void get_sequence_connection_list(List<SequenceConnection> *r_connection) const;
+	Set<int> get_output_sequence_ports_connected(int from_node);
 
-	void data_connect(const StringName &p_func, int p_from_node, int p_from_port, int p_to_node, int p_to_port);
-	void data_disconnect(const StringName &p_func, int p_from_node, int p_from_port, int p_to_node, int p_to_port);
-	bool has_data_connection(const StringName &p_func, int p_from_node, int p_from_port, int p_to_node, int p_to_port) const;
-	void get_data_connection_list(const StringName &p_func, List<DataConnection> *r_connection) const;
-	bool is_input_value_port_connected(const StringName &p_func, int p_node, int p_port) const;
-	bool get_input_value_port_connection_source(const StringName &p_func, int p_node, int p_port, int *r_node, int *r_port) const;
+	void data_connect(int p_from_node, int p_from_port, int p_to_node, int p_to_port);
+	void data_disconnect(int p_from_node, int p_from_port, int p_to_node, int p_to_port);
+	bool has_data_connection(int p_from_node, int p_from_port, int p_to_node, int p_to_port) const;
+	void get_data_connection_list(List<DataConnection> *r_connection) const;
+
+	bool is_input_value_port_connected(int p_node, int p_port) const;
+	bool get_input_value_port_connection_source(int p_node, int p_port, int *r_node, int *r_port) const;
 
 	void add_variable(const StringName &p_name, const Variant &p_default_value = Variant(), bool p_export = false);
 	bool has_variable(const StringName &p_name) const;
@@ -407,7 +407,6 @@ class VisualScriptInstance : public ScriptInstance {
 	void _dependency_step(VisualScriptNodeInstance *node, int p_pass, int *pass_stack, const Variant **input_args, Variant **output_args, Variant *variant_stack, Callable::CallError &r_error, String &error_str, VisualScriptNodeInstance **r_error_node);
 	Variant _call_internal(const StringName &p_method, void *p_stack, int p_stack_size, VisualScriptNodeInstance *p_node, int p_flow_stack_pos, int p_pass, bool p_resuming_yield, Callable::CallError &r_error);
 
-	//Map<StringName,Function> functions;
 	friend class VisualScriptFunctionState; //for yield
 	friend class VisualScriptLanguage; //for debugger
 public:
