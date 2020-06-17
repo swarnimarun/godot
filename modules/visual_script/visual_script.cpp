@@ -270,7 +270,7 @@ void VisualScript::_node_ports_changed(int p_id) {
 #endif
 }
 
-void VisualScript::add_node(const StringName &p_func, int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos) {
+void VisualScript::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos) {
 	ERR_FAIL_COND(instances.size());
 	ERR_FAIL_COND(nodes.has(p_id)); //id can exist only one in script
 
@@ -588,24 +588,19 @@ void VisualScript::rename_variable(const StringName &p_name, const StringName &p
 
 	variables[p_new_name] = variables[p_name];
 	variables.erase(p_name);
-
-	List<StringName> funcs;
-	get_function_list(&funcs);
-	for (List<StringName>::Element *F = funcs.front(); F; F = F->next()) { // loop through all the functions
-		List<int> ids;
-		get_node_list(F->get(), &ids);
-		for (List<int>::Element *E = ids.front(); E; E = E->next()) {
-			Ref<VisualScriptVariableGet> nodeget = get_node(F->get(), E->get());
-			if (nodeget.is_valid()) {
-				if (nodeget->get_variable() == p_name) {
-					nodeget->set_variable(p_new_name);
-				}
-			} else {
-				Ref<VisualScriptVariableSet> nodeset = get_node(F->get(), E->get());
-				if (nodeset.is_valid()) {
-					if (nodeset->get_variable() == p_name) {
-						nodeset->set_variable(p_new_name);
-					}
+	List<int> ids;
+	get_node_list(&ids);
+	for (List<int>::Element *E = ids.front(); E; E = E->next()) {
+		Ref<VisualScriptVariableGet> nodeget = get_node(E->get());
+		if (nodeget.is_valid()) {
+			if (nodeget->get_variable() == p_name) {
+				nodeget->set_variable(p_new_name);
+			}
+		} else {
+			Ref<VisualScriptVariableSet> nodeset = get_node(E->get());
+			if (nodeset.is_valid()) {
+				if (nodeset->get_variable() == p_name) {
+					nodeset->set_variable(p_new_name);
 				}
 			}
 		}
@@ -1046,35 +1041,37 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 		Dictionary func = funcs[i];
 		add_function(func["name"], func["function_id"]);
 	}
+	{
+		Array nodes = d["nodes"];
+		for (int i = 0; i < nodes.size(); i += 3) {
+			add_node(nodes[i], nodes[i + 2], nodes[i + 1]);
+		}
 
-	Array nodes = d["nodes"];
-	for (int i = 0; i < nodes.size(); i += 3) {
-		add_node(nodes[i], nodes[i + 2], nodes[i + 1]);
+		Array sequence_connections = d["sequence_connections"];
+		for (int j = 0; j < sequence_connections.size(); j += 3) {
+			sequence_connect(sequence_connections[j + 0], sequence_connections[j + 1], sequence_connections[j + 2]);
+		}
+
+		Array data_connections = d["data_connections"];
+		for (int j = 0; j < data_connections.size(); j += 4) {
+			data_connect(data_connections[j + 0], data_connections[j + 1], data_connections[j + 2], data_connections[j + 3]);
+		}
 	}
-
-	Array sequence_connections = d["sequence_connections"];
-	for (int j = 0; j < sequence_connections.size(); j += 3) {
-		sequence_connect(sequence_connections[j + 0], sequence_connections[j + 1], sequence_connections[j + 2]);
-	}
-
-	Array data_connections = d["data_connections"];
-	for (int j = 0; j < data_connections.size(); j += 4) {
-		data_connect(data_connections[j + 0], data_connections[j + 1], data_connections[j + 2], data_connections[j + 3]);
-	}
-
 	is_tool_script = d["is_tool_script"];
 	scroll = d["scroll"];
 
 	// Takes all the rpc methods
 	rpc_functions.clear();
 	rpc_variables.clear();
-	for (Map<StringName, Function>::Element *E = functions.front(); E; E = E->next()) {
-		if (E->get().function_id >= 0 && E->get().nodes.find(E->get().function_id)) {
-			Ref<VisualScriptFunction> vsf = E->get().nodes[E->get().function_id].node;
+	List<StringName> fns;
+	functions.get_key_list(&fns);
+	for (const List<StringName>::Element *E = fns.front(); E; E = E->next()) {
+		if (functions[E->get()].func_id >= 0 && nodes.has(functions[E->get()].func_id)) {
+			Ref<VisualScriptFunction> vsf = nodes[functions[E->get()].func_id].node;
 			if (vsf.is_valid()) {
 				if (vsf->get_rpc_mode() != MultiplayerAPI::RPC_MODE_DISABLED) {
 					ScriptNetData nd;
-					nd.name = E->key();
+					nd.name = E->get();
 					nd.mode = vsf->get_rpc_mode();
 					if (rpc_functions.find(nd) == -1) {
 						rpc_functions.push_back(nd);
