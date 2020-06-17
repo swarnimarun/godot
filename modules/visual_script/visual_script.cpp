@@ -1082,7 +1082,7 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 	}
 
 	// Visual script doesn't have rset :(
-		// should I add rsets to VisualScript??
+		// TODO: add rsets to VisualScript??
 	// Sort so we are 100% that they are always the same.
 	rpc_functions.sort_custom<SortNetData>();
 }
