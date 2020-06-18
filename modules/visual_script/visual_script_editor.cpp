@@ -2922,7 +2922,6 @@ void VisualScriptEditor::_graph_connected(const String &p_from, int p_from_slot,
 }
 
 void VisualScriptEditor::_graph_disconnected(const String &p_from, int p_from_slot, const String &p_to, int p_to_slot) {
-
 	Ref<VisualScriptNode> from_node = script->get_node(p_from.to_int());
 	ERR_FAIL_COND(!from_node.is_valid());
 
@@ -2982,7 +2981,7 @@ void VisualScriptEditor::_graph_connect_to_empty(const String &p_from, int p_fro
 	}
 	if (vsn->get_output_value_port_count())
 
-	port_action_pos = p_release_pos;
+		port_action_pos = p_release_pos;
 
 	if (p_from_slot < vsn->get_output_sequence_port_count()) {
 		port_action_node = p_from.to_int();
@@ -3677,7 +3676,6 @@ void VisualScriptEditor::_menu_option(int p_what) {
 			_on_nodes_delete();
 		} break;
 		case EDIT_TOGGLE_BREAKPOINT: {
-
 			List<String> reselect;
 			for (int i = 0; i < graph->get_child_count(); i++) {
 				GraphNode *gn = Object::cast_to<GraphNode>(graph->get_child(i));
@@ -3706,7 +3704,6 @@ void VisualScriptEditor::_menu_option(int p_what) {
 		} break;
 		case EDIT_COPY_NODES:
 		case EDIT_CUT_NODES: {
-
 			clipboard->nodes.clear();
 			clipboard->data_connections.clear();
 			clipboard->sequence_connections.clear();
@@ -3715,7 +3712,6 @@ void VisualScriptEditor::_menu_option(int p_what) {
 				GraphNode *gn = Object::cast_to<GraphNode>(graph->get_child(i));
 				if (gn) {
 					if (gn->is_selected()) {
-
 						int id = gn->get_name().operator String().to_int();
 						Ref<VisualScriptNode> node = script->get_node(id);
 						if (Object::cast_to<VisualScriptFunction>(*node)) {
@@ -3756,7 +3752,6 @@ void VisualScriptEditor::_menu_option(int p_what) {
 
 		} break;
 		case EDIT_PASTE_NODES: {
-
 			if (clipboard->nodes.empty()) {
 				EditorNode::get_singleton()->show_warning(TTR("Clipboard is empty!"));
 				break;
@@ -3780,8 +3775,7 @@ void VisualScriptEditor::_menu_option(int p_what) {
 				}
 			}
 
-			for (Map<int, Ref<VisualScriptNode> >::Element *E = clipboard->nodes.front(); E; E = E->next()) {
-
+			for (Map<int, Ref<VisualScriptNode>>::Element *E = clipboard->nodes.front(); E; E = E->next()) {
 				Ref<VisualScriptNode> node = E->get()->duplicate();
 
 				int new_id = idc++;
@@ -3800,13 +3794,11 @@ void VisualScriptEditor::_menu_option(int p_what) {
 			}
 
 			for (Set<VisualScript::SequenceConnection>::Element *E = clipboard->sequence_connections.front(); E; E = E->next()) {
-
 				undo_redo->add_do_method(script.ptr(), "sequence_connect", remap[E->get().from_node], E->get().from_output, remap[E->get().to_node]);
 				undo_redo->add_undo_method(script.ptr(), "sequence_disconnect", remap[E->get().from_node], E->get().from_output, remap[E->get().to_node]);
 			}
 
 			for (Set<VisualScript::DataConnection>::Element *E = clipboard->data_connections.front(); E; E = E->next()) {
-
 				undo_redo->add_do_method(script.ptr(), "data_connect", remap[E->get().from_node], E->get().from_port, remap[E->get().to_node], E->get().to_port);
 				undo_redo->add_undo_method(script.ptr(), "data_disconnect", remap[E->get().from_node], E->get().from_port, remap[E->get().to_node], E->get().to_port);
 			}
@@ -3826,7 +3818,7 @@ void VisualScriptEditor::_menu_option(int p_what) {
 		} break;
 		case EDIT_CREATE_FUNCTION: {
 			// Create Function
-			Map<int, Ref<VisualScriptNode> > nodes;
+			Map<int, Ref<VisualScriptNode>> nodes;
 			Set<int> selections;
 			for (int i = 0; i < graph->get_child_count(); i++) {
 				GraphNode *gn = Object::cast_to<GraphNode>(graph->get_child(i));
@@ -3876,7 +3868,7 @@ void VisualScriptEditor::_menu_option(int p_what) {
 					// the user wants to connect the nodes
 					int top_nd = -1;
 					Vector2 top;
-					for (Map<int, Ref<VisualScriptNode> >::Element *E = nodes.front(); E; E = E->next()) {
+					for (Map<int, Ref<VisualScriptNode>>::Element *E = nodes.front(); E; E = E->next()) {
 						Ref<VisualScriptNode> nd = script->get_node(E->key());
 						if (nd.is_valid() && nd->has_input_sequence_port()) {
 							if (top_nd < 0) {
@@ -3940,7 +3932,7 @@ void VisualScriptEditor::_menu_option(int p_what) {
 			}
 
 			List<Variant::Type> inputs; // input types
-			List<Pair<int, int> > input_connections;
+			List<Pair<int, int>> input_connections;
 			{
 				List<VisualScript::DataConnection> dats;
 				script->get_data_connection_list(&dats);
@@ -3983,7 +3975,7 @@ void VisualScriptEditor::_menu_option(int p_what) {
 				undo_redo->add_undo_method(this, "emit_signal", "edited_script_changed");
 				// * might make the system more intelligent by checking port from info.
 				int i = 0;
-				List<Pair<int, int> >::Element *F = input_connections.front();
+				List<Pair<int, int>>::Element *F = input_connections.front();
 				for (List<Variant::Type>::Element *E = inputs.front(); E && F; E = E->next(), F = F->next()) {
 					func_node->add_argument(E->get(), "arg_" + String::num_int64(i), i);
 					undo_redo->add_do_method(script.ptr(), "data_connect", fn_id, i, F->get().first, F->get().second);

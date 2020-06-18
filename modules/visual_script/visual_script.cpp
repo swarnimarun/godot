@@ -1082,7 +1082,7 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 	}
 
 	// Visual script doesn't have rset :(
-		// TODO: add rsets to VisualScript??
+	// TODO: add rsets to VisualScript??
 	// Sort so we are 100% that they are always the same.
 	rpc_functions.sort_custom<SortNetData>();
 }
@@ -2017,7 +2017,6 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			//multiple passes are required to set up this complex thing..
 			//first create the nodes
 			for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
-
 				Ref<VisualScriptNode> node = script->nodes[F->get()].node;
 
 				VisualScriptNodeInstance *instance = node->instance(this); //create instance
@@ -2038,7 +2037,6 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				if (instance->input_port_count) {
 					instance->input_ports = memnew_arr(int, instance->input_port_count);
 					for (int i = 0; i < instance->input_port_count; i++) {
-
 						instance->input_ports[i] = -1; //if not assigned, will become default value
 					}
 				}
@@ -2141,7 +2139,6 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				// connect to default values
 				for (int i = 0; i < instance->input_port_count; i++) {
 					if (instance->input_ports[i] == -1) {
-
 						//unassigned, connect to default val
 						instance->input_ports[i] = default_values.size() | VisualScriptNodeInstance::INPUT_DEFAULT_VALUE_BIT;
 						default_values.push_back(node->get_default_input_value(i));
