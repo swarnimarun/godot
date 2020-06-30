@@ -2011,7 +2011,27 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					}
 					nd_queue.pop_front();
 				}
-				// TODO: Add nodes that are linked via data connections
+				HashMap<int, HashMap<int, Pair<int, int>>> dc_lut; // :: to -> to_port -> (from, from_port)
+				for (const Set<VisualScript::DataConnection>::Element *F = script->data_connections.front(); F; F = F->next()) {
+					dc_lut[F->get().to_node][F->get().to_port] = Pair<int, int>(F->get().from_node, F->get().from_port);
+				}
+				nd_queue.push_back(function.node);
+				List<int> dc_keys;
+				while (!nd_queue.empty()) {
+					int ky = nd_queue.front()->get();
+					dc_lut[ky].get_key_list(&dc_keys);
+					for (const List<int>::Element *F = dc_keys.front(); F; F = F->next()) {
+						VisualScript::DataConnection dc;
+						dc.from_node = dc_lut[ky][F->get()].first;
+						dc.from_port = dc_lut[ky][F->get()].second;
+						dc.to_node = ky;
+						dc.to_port = F->get();
+						dataconns.insert(dc);
+						nd_queue.push_back(dc.from_node);
+						node_ids.insert(dc.from_node);
+					}
+					nd_queue.pop_front();
+				}
 			}
 
 			//multiple passes are required to set up this complex thing..
