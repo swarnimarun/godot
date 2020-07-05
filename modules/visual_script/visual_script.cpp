@@ -1993,7 +1993,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			}
 			// function nodes graphs
 			Set<VisualScript::SequenceConnection> seqconns;
-			Set<VisualScript::DataConnection> dataconns; // TODO: Fill up data connections list
+			Set<VisualScript::DataConnection> dataconns;
 			Set<int> node_ids;
 			node_ids.insert(function.node);
 			{
@@ -2030,6 +2030,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 						nd_queue.push_back(dc.from_node);
 						node_ids.insert(dc.from_node);
 					}
+					dc_keys.clear(); // necessary as get_key_list does a push_back not a set
 					nd_queue.pop_front();
 				}
 			}
