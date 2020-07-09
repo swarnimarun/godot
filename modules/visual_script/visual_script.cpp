@@ -2015,7 +2015,9 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				for (const Set<VisualScript::DataConnection>::Element *F = script->data_connections.front(); F; F = F->next()) {
 					dc_lut[F->get().to_node][F->get().to_port] = Pair<int, int>(F->get().from_node, F->get().from_port);
 				}
-				nd_queue.push_back(function.node);
+				for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
+					nd_queue.push_back(F->get());
+				}
 				List<int> dc_keys;
 				while (!nd_queue.empty()) {
 					int ky = nd_queue.front()->get();
