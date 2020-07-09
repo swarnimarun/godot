@@ -16,6 +16,8 @@ void VisualScriptSubmodule::_set_data(const Dictionary& p_data) {
     for (int j = 0; j < data_connections.size(); j += 4) {
         data_connect(data_connections[j + 0], data_connections[j + 1], data_connections[j + 2], data_connections[j + 3]);
     }
+
+	scroll = p_data["scroll"];
 }
 Dictionary VisualScriptSubmodule::_get_data() const {
     // used to save data
