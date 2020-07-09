@@ -35,6 +35,7 @@
 #include "core/debugger/script_debugger.h"
 #include "core/os/thread.h"
 #include "core/script_language.h"
+#include "visual_script_submodules.h"
 
 class VisualScriptInstance;
 class VisualScriptNodeInstance;
@@ -244,6 +245,9 @@ private:
 	Map<Object *, VisualScriptInstance *> instances;
 
 	bool is_tool_script;
+
+	Set<VisualScriptSubmodule> submodules; // add internal submodules to the visualscript
+	Set<VisualScriptSubmodulePath> submodules_ext; // add external submodules to the visualscript
 
 #ifdef TOOLS_ENABLED
 	Set<PlaceHolderScriptInstance *> placeholders;

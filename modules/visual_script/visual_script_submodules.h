@@ -1,3 +1,6 @@
+#ifndef VISUAL_SCRIPT_SUBMODULES_H
+#define VISUAL_SCRIPT_SUBMODULES_H
+
 #include "visual_script.h"
 
 class VisualScriptSubmodule : public Resource {
@@ -50,3 +53,7 @@ public:
     VisualScriptSubmodule();
     ~VisualScriptSubmodule();
 };
+
+class VisualScriptSubmodulePath : public Resource {};
+
+#endif
