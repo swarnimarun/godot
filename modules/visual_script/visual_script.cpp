@@ -55,8 +55,8 @@ void VisualScriptNode::set_default_input_value(int p_port, const Variant &p_valu
 	default_input_values[p_port] = p_value;
 
 #ifdef TOOLS_ENABLED
-	if (script_used.is_valid())
-		script_used->set_edited(true);
+	if (container.is_valid())
+		container->set_edited(true);
 #endif
 }
 
@@ -105,7 +105,7 @@ String VisualScriptNode::get_text() const {
 }
 
 void VisualScriptNode::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("get_visual_script"), &VisualScriptNode::get_visual_script);
+	ClassDB::bind_method(D_METHOD("get_container"), &VisualScriptNode::get_container);
 	ClassDB::bind_method(D_METHOD("set_default_input_value", "port_idx", "value"), &VisualScriptNode::set_default_input_value);
 	ClassDB::bind_method(D_METHOD("get_default_input_value", "port_idx"), &VisualScriptNode::get_default_input_value);
 	ClassDB::bind_method(D_METHOD("ports_changed_notify"), &VisualScriptNode::ports_changed_notify);
@@ -131,8 +131,8 @@ VisualScriptNode::TypeGuess VisualScriptNode::guess_output_type(TypeGuess *p_inp
 	return tg;
 }
 
-Ref<VisualScript> VisualScriptNode::get_visual_script() const {
-	return script_used;
+Ref<Resource> VisualScriptNode::get_container() const {
+	return container;
 }
 
 VisualScriptNode::VisualScriptNode() {
@@ -225,7 +225,11 @@ Dictionary VisualScriptSubmodule::_get_data() const {
 }
 
 void VisualScriptSubmodule::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("_set_data", "data"), &VisualScriptSubmodule::_set_data);
+	ClassDB::bind_method(D_METHOD("_get_data"), &VisualScriptSubmodule::_get_data);
+
 	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_data", "_get_data");
+	ADD_SIGNAL(MethodInfo("node_ports_changed", PropertyInfo(Variant::INT, "id")));
 }
 
 void VisualScriptSubmodule::set_scroll(Vector2 p_scroll) {
@@ -236,45 +240,160 @@ Vector2 VisualScriptSubmodule::get_scroll() const {
 	return scroll;
 }
 
-VisualScriptSubmodule::VisualScriptSubmodule() {}
-VisualScriptSubmodule::~VisualScriptSubmodule() {}
+void VisualScriptSubmodule::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2()) {
+	ERR_FAIL_COND(nodes.has(p_id)); //id can exist only one in script
 
-void VisualScriptSubmodule::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2()) {}
-void VisualScriptSubmodule::remove_node(int p_id) {}
-bool VisualScriptSubmodule::has_node(int p_id) const {}
-Ref<VisualScriptNode> VisualScriptSubmodule::get_node(int p_id) const {}
-Vector2 VisualScriptSubmodule::get_node_position(int p_id) const {}
-void VisualScriptSubmodule::set_node_position(Vector2 p_pos) {}
-void VisualScriptSubmodule::get_node_list(List<int> *r_nodes) const {}
+	NodeData nd;
+	nd.node = p_node;
+	nd.pos = p_pos;
 
-void VisualScriptSubmodule::set_scroll(Vector2 p_scroll) {}
-Vector2 VisualScriptSubmodule::get_scroll() const {}
+	Ref<VisualScriptNode> vsn = p_node;
+	vsn->connect("ports_changed", callable_mp(this, &VisualScriptSubmodule::_node_ports_changed), varray(p_id));
+	vsn->container = Ref<Resource>(this);
+	vsn->validate_input_default_values(); // Validate when fully loaded
+
+	nodes[p_id] = nd;
+}
+
+void VisualScriptSubmodule::remove_node(int p_id) {
+	ERR_FAIL_COND(!nodes.has(p_id));
+	{
+		List<VisualScript::SequenceConnection> to_remove;
+
+		for (Set<VisualScript::SequenceConnection>::Element *E = sequence_connections.front(); E; E = E->next()) {
+			if (E->get().from_node == p_id || E->get().to_node == p_id) {
+				to_remove.push_back(E->get());
+			}
+		}
+
+		while (to_remove.size()) {
+			sequence_connections.erase(to_remove.front()->get());
+			to_remove.pop_front();
+		}
+	}
+
+	{
+		List<VisualScript::DataConnection> to_remove;
+
+		for (Set<VisualScript::DataConnection>::Element *E = data_connections.front(); E; E = E->next()) {
+			if (E->get().from_node == p_id || E->get().to_node == p_id) {
+				to_remove.push_back(E->get());
+			}
+		}
+
+		while (to_remove.size()) {
+			data_connections.erase(to_remove.front()->get());
+			to_remove.pop_front();
+		}
+	}
+
+	nodes[p_id].node->disconnect("ports_changed", callable_mp(this, &VisualScriptSubmodule::_node_ports_changed));
+	nodes[p_id].node->container.unref();
+
+	nodes.erase(p_id);
+}
+
+bool VisualScriptSubmodule::has_node(int p_id) const {
+	return nodes.has(p_id);
+}
+
+Ref<VisualScriptNode> VisualScriptSubmodule::get_node(int p_id) const {
+	ERR_FAIL_COND(!nodes.has(p_id));
+	return nodes[p_id].node;
+}
+
+Vector2 VisualScriptSubmodule::get_node_position(int p_id) const {
+	ERR_FAIL_COND(!nodes.has(p_id));
+	return nodes[p_id].pos;
+}
+
+void VisualScriptSubmodule::set_node_position(int p_id, const Point2 &p_pos) {
+	ERR_FAIL_COND(!nodes.has(p_id));
+	nodes[p_id].pos = p_pos;
+}
+
+void VisualScriptSubmodule::get_node_list(List<int> *r_nodes) const {
+	nodes.get_key_list(r_nodes);
+}
 
 void VisualScriptSubmodule::sequence_connect(int p_from_node, int p_from_output, int p_to_node) {}
 void VisualScriptSubmodule::sequence_disconnect(int p_from_node, int p_from_output, int p_to_node) {}
 bool VisualScriptSubmodule::has_sequence_connection(int p_from_node, int p_from_output, int p_to_node) const {}
-// void VisualScriptSubmodule::get_sequence_connection_list(List<VisualScript::SequenceConnection> *r_connection) const {}
+void VisualScriptSubmodule::get_sequence_connection_list(List<VisualScript::SequenceConnection> *r_connection) const {}
 
 
 void VisualScriptSubmodule::data_connect(int p_from_node, int p_from_port, int p_to_node, int p_to_port) {}
 void VisualScriptSubmodule::data_disconnect(int p_from_node, int p_from_port, int p_to_node, int p_to_port) {}
 bool VisualScriptSubmodule::has_data_connection(int p_from_node, int p_from_port, int p_to_node, int p_to_port) const {}
-// void VisualScriptSubmodule::get_data_connection_list(List<VisualScript::DataConnection> *r_connection) const {}
+void VisualScriptSubmodule::get_data_connection_list(List<VisualScript::DataConnection> *r_connection) const {}
 
 VisualScriptSubmodule::VisualScriptSubmodule() {}
 VisualScriptSubmodule::~VisualScriptSubmodule() {}
+
+void VisualScript::_node_ports_changed(int p_id) {
+	Ref<VisualScriptNode> vsn = nodes[p_id].node;
+
+	vsn->validate_input_default_values();
+
+	//must revalidate all the functions
+
+	{
+		List<SequenceConnection> to_remove;
+
+		for (Set<SequenceConnection>::Element *E = sequence_connections.front(); E; E = E->next()) {
+			if (E->get().from_node == p_id && E->get().from_output >= vsn->get_output_sequence_port_count()) {
+				to_remove.push_back(E->get());
+			}
+			if (E->get().to_node == p_id && !vsn->has_input_sequence_port()) {
+				to_remove.push_back(E->get());
+			}
+		}
+
+		while (to_remove.size()) {
+			sequence_connections.erase(to_remove.front()->get());
+			to_remove.pop_front();
+		}
+	}
+
+	{
+		List<DataConnection> to_remove;
+
+		for (Set<DataConnection>::Element *E = data_connections.front(); E; E = E->next()) {
+			if (E->get().from_node == p_id && E->get().from_port >= vsn->get_output_value_port_count()) {
+				to_remove.push_back(E->get());
+			}
+			if (E->get().to_node == p_id && E->get().to_port >= vsn->get_input_value_port_count()) {
+				to_remove.push_back(E->get());
+			}
+		}
+
+		while (to_remove.size()) {
+			data_connections.erase(to_remove.front()->get());
+			to_remove.pop_front();
+		}
+	}
+
+#ifdef TOOLS_ENABLED
+	set_edited(true); //something changed, let's set as edited
+	emit_signal("node_ports_changed", p_id);
+#endif
+}
 
 /////////////////////
 //////// VisualScript
 //////////////////////
 
-void VisualScript::add_submodule(Ref<VisualScriptSubmodule> p_mod) {
-	if (!has_submodule(p_mod)) {
-		submodules.push_back();
+void VisualScript::add_submodule(int p_id, Ref<VisualScriptSubmodule> p_mod) {
+	if (!has_submodule(p_id)) {
+		submodules[p_id] = p_mod;
 	}
 }
-Ref<VisualScriptSubmodule> VisualScript::get_submodule() const {}
-bool VisualScript::has_submodule(Ref<VisualScriptSubmodule> p_mod) const {}
+Ref<VisualScriptSubmodule> VisualScript::get_submodule(int p_id) const {
+	return submodules[p_id];
+}
+bool VisualScript::has_submodule(int p_id) const {
+	return submodules.has(p_id);
+}
 
 void VisualScript::add_function(const StringName &p_name, int func_node_id) {
 	ERR_FAIL_COND(instances.size());
@@ -394,7 +513,7 @@ void VisualScript::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const
 
 	Ref<VisualScriptNode> vsn = p_node;
 	vsn->connect("ports_changed", callable_mp(this, &VisualScript::_node_ports_changed), varray(p_id));
-	vsn->script_used = Ref<VisualScript>(this);
+	vsn->container = Ref<Resource>(this);
 	vsn->validate_input_default_values(); // Validate when fully loaded
 
 	nodes[p_id] = nd;
@@ -434,7 +553,7 @@ void VisualScript::remove_node(int p_id) {
 	}
 
 	nodes[p_id].node->disconnect("ports_changed", callable_mp(this, &VisualScript::_node_ports_changed));
-	nodes[p_id].node->script_used.unref();
+	nodes[p_id].node->container.unref();
 
 	nodes.erase(p_id);
 }
@@ -1175,8 +1294,8 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 	scroll = d["scroll"];
 	
 	Array submods = d["submodules"];
-	for (int i = 0; i < submods.size(); i++) {
-		add_submodule(submods[i]);
+	for (int i = 0; i < submods.size(); i += 2) {
+		add_submodule(submods[i], submods[i+1]);
 	}
 
 	// Takes all the rpc methods
@@ -1278,6 +1397,15 @@ Dictionary VisualScript::_get_data() const {
 
 	d["is_tool_script"] = is_tool_script;
 	d["scroll"] = scroll;
+
+	Array smds;
+	List<int> mod_ids;
+	submodules.get_key_list(&mod_ids);
+	for (const List<int>::Element *F = mod_ids.front(); F; F = F->next()) {
+		smds.push_back(F->get());
+		smds.push_back(submodules[F->get()]);
+	}
+	d["submodules"] = smds;
 
 	return d;
 }

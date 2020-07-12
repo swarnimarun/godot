@@ -547,7 +547,11 @@ void VisualScriptEditor::_update_graph_connections() {
 	graph->clear_connections();
 
 	List<VisualScript::SequenceConnection> sequence_conns;
-	script->get_sequence_connection_list(&sequence_conns);
+	if (inside_submodule) {
+		curr_submodule->get_sequence_connection_list(&sequence_conns);
+	} else {
+		script->get_sequence_connection_list(&sequence_conns);
+	}
 
 	for (List<VisualScript::SequenceConnection>::Element *E = sequence_conns.front(); E; E = E->next()) {
 		graph->connect_node(itos(E->get().from_node), E->get().from_output, itos(E->get().to_node), 0);
@@ -580,7 +584,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 	updating_graph = true;
 
 	//byebye all nodes
-	if (p_only_id >= 0) {
+	if (p_only_id >= 0 && !inside_submodule) {
 		if (graph->has_node(itos(p_only_id))) {
 			Node *gid = graph->get_node(itos(p_only_id));
 			if (gid) {
@@ -635,13 +639,14 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 
 	Ref<Texture2D> seq_port = Control::get_theme_icon("VisualShaderPort", "EditorIcons");
 	List<int> node_ids;
-	script->get_node_list(&node_ids);
-
-	List<int> ids;
-	script->get_node_list(&ids);
+	if (inside_submodule) {
+		curr_submodule->get_node_list(&node_ids);
+	} else {
+		script->get_node_list(&node_ids);
+	}
 	StringName editor_icons = "EditorIcons";
 
-	for (List<int>::Element *E = ids.front(); E; E = E->next()) {
+	for (List<int>::Element *E = node_ids.front(); E; E = E->next()) {
 		if (p_only_id >= 0 && p_only_id != E->get()) {
 			continue;
 		}
@@ -1280,6 +1285,8 @@ void VisualScriptEditor::_create_function_dialog() {
 }
 
 void VisualScriptEditor::_create_function() {
+	ERR_FAIL_COND(inside_submodule);
+
 	String name = _validate_name((func_name_box->get_text() == "") ? "new_func" : func_name_box->get_text());
 	selected = name;
 	Vector2 ofs = _get_available_pos();
@@ -1466,7 +1473,13 @@ void VisualScriptEditor::_member_button(Object *p_item, int p_column, int p_butt
 }
 
 void VisualScriptEditor::_add_input_port(int p_id) {
-	Ref<VisualScriptLists> vsn = script->get_node(p_id);
+	Ref<VisualScriptLists> vsn;
+	if (inside_submodule) {
+		vsn = curr_submodule->get_node(p_id);
+	} else {
+		vsn = script->get_node(p_id);
+	}
+
 	if (!vsn.is_valid()) {
 		return;
 	}
@@ -1677,9 +1690,9 @@ void VisualScriptEditor::_on_nodes_delete() {
 
 	for (List<int>::Element *F = to_erase.front(); F; F = F->next()) {
 		int cr_node = F->get();
-
-		undo_redo->add_do_method(script.ptr(), "remove_node", cr_node);
-		undo_redo->add_undo_method(script.ptr(), "add_node", cr_node, script->get_node(cr_node), script->get_node_position(cr_node));
+		Object *objptr = script.ptr();
+		undo_redo->add_do_method(objptr, "remove_node", cr_node);
+		undo_redo->add_undo_method(objptr, "add_node", cr_node, script->get_node(cr_node), script->get_node_position(cr_node));
 
 		List<VisualScript::SequenceConnection> sequence_conns;
 		script->get_sequence_connection_list(&sequence_conns);
@@ -1695,7 +1708,7 @@ void VisualScriptEditor::_on_nodes_delete() {
 
 		for (List<VisualScript::DataConnection>::Element *E = data_conns.front(); E; E = E->next()) {
 			if (E->get().from_node == F->get() || E->get().to_node == F->get()) {
-				undo_redo->add_undo_method(script.ptr(), "data_connect", E->get().from_node, E->get().from_port, E->get().to_node, E->get().to_port);
+				undo_redo->add_undo_method(objptr, "data_connect", E->get().from_node, E->get().from_port, E->get().to_node, E->get().to_port);
 			}
 		}
 	}
@@ -1911,7 +1924,7 @@ void VisualScriptEditor::_fn_name_box_input(const Ref<InputEvent> &p_event) {
 }
 
 Variant VisualScriptEditor::get_drag_data_fw(const Point2 &p_point, Control *p_from) {
-	if (p_from == members) {
+	if (p_from == members && !inside_submodule) {
 		TreeItem *it = members->get_item_at_position(p_point);
 		if (!it) {
 			return Variant();
@@ -1949,7 +1962,7 @@ Variant VisualScriptEditor::get_drag_data_fw(const Point2 &p_point, Control *p_f
 }
 
 bool VisualScriptEditor::can_drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from) const {
-	if (p_from == graph) {
+	if (p_from == graph && !inside_submodule) {
 		Dictionary d = p_data;
 		if (d.has("type") &&
 				(String(d["type"]) == "visual_script_node_drag" ||
@@ -2013,7 +2026,7 @@ static Node *_find_script_node(Node *p_edited_scene, Node *p_current_node, const
 }
 
 void VisualScriptEditor::drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from) {
-	if (p_from != graph) {
+	if (p_from != graph || inside_submodule) {
 		return;
 	}
 

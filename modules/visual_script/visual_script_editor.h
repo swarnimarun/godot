@@ -174,6 +174,9 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	Vector2 mouse_up_position;
 
+	Ref<VisualScriptSubmodule> curr_submodule; // currently selected submodule
+	bool inside_submodule; // bool to perform quick check to see whether we are editing submodule or the actual script.
+
 	void _port_action_menu(int p_option);
 
 	void connect_data(Ref<VisualScriptNode> vnode_old, Ref<VisualScriptNode> vnode, int new_id);

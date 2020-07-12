@@ -44,8 +44,9 @@ class VisualScriptNode : public Resource {
 	GDCLASS(VisualScriptNode, Resource);
 
 	friend class VisualScript;
+	friend class VisualScriptSubmodule;
 
-	Ref<VisualScript> script_used;
+	Ref<Resource> container;
 
 	Array default_input_values;
 	bool breakpoint;
@@ -60,7 +61,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	Ref<VisualScript> get_visual_script() const;
+	Ref<Resource> get_container() const;
 
 	virtual int get_output_sequence_port_count() const = 0;
 	virtual bool has_input_sequence_port() const = 0;
@@ -169,7 +170,7 @@ class VisualScriptSubmodule : public Resource {
 	RES_BASE_EXTENSION("vsmodule"); // TODO: To be discussed
 
 	friend class VisualScriptInstance;
-protected:
+private:
     struct NodeData {
         Point2 pos;
         Ref<VisualScriptNode> node;
@@ -181,7 +182,6 @@ protected:
 
     Vector2 scroll;
 
-	Ref<VisualScript> current_script;
 protected:
 	static void _bind_methods();
 
@@ -195,7 +195,7 @@ public:
     bool has_node(int p_id) const;
     Ref<VisualScriptNode> get_node(int p_id) const;
     Vector2 get_node_position(int p_id) const;
-    void set_node_position(Vector2 p_pos);
+    void set_node_position(int p_id, const Point2 &p_pos);
     void get_node_list(List<int> *r_nodes) const;
 
     void set_scroll(Vector2 p_scroll);
@@ -210,6 +210,8 @@ public:
     void data_disconnect(int p_from_node, int p_from_port, int p_to_node, int p_to_port);
     bool has_data_connection(int p_from_node, int p_from_port, int p_to_node, int p_to_port) const;
     void get_data_connection_list(List<VisualScript::DataConnection> *r_connection) const;
+
+	void _node_ports_changed(int p_id);
 
     VisualScriptSubmodule();
     ~VisualScriptSubmodule();
