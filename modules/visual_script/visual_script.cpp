@@ -162,6 +162,120 @@ VisualScriptNodeInstance::~VisualScriptNodeInstance() {
 	}
 }
 
+////////////////
+////	VisualScriptSubmodule
+/////////////////////
+
+void VisualScriptSubmodule::_set_data(const Dictionary& p_data) {
+    // used to load data for the resource
+    Array nds = p_data["nodes"];
+    for (int i = 0; i < nds.size(); i++) {
+        Dictionary nd = nds[i];
+        add_node(nd["id"], nd["node"], nd["pos"]);
+    }
+    Array sequence_connections = p_data["sequence_connections"];
+    for (int j = 0; j < sequence_connections.size(); j += 3) {
+        sequence_connect(sequence_connections[j + 0], sequence_connections[j + 1], sequence_connections[j + 2]);
+    }
+
+    Array data_connections = p_data["data_connections"];
+    for (int j = 0; j < data_connections.size(); j += 4) {
+        data_connect(data_connections[j + 0], data_connections[j + 1], data_connections[j + 2], data_connections[j + 3]);
+    }
+
+	scroll = p_data["scroll"];
+}
+
+Dictionary VisualScriptSubmodule::_get_data() const {
+    // used to save data
+    Dictionary d;
+
+    Array nds;
+    List<int> keys;
+    nodes.get_key_list(&keys);
+    for (const List<int>::Element *E = keys.front(); E; E = E->next()) {
+        Dictionary nd;
+        nd["id"] = E->get();
+        nd["node"] = nodes[E->get()].node;
+        nd["pos"] = nodes[E->get()].pos;
+        nds.push_back(nd);
+    }
+    d["nodes"] = nds;
+
+
+	Array seqconns;
+	for (const Set<VisualScript::SequenceConnection>::Element *F = sequence_connections.front(); F; F = F->next()) {
+		seqconns.push_back(F->get().from_node);
+		seqconns.push_back(F->get().from_output);
+		seqconns.push_back(F->get().to_node);
+	}
+	d["sequence_connections"] = seqconns;
+
+	Array dataconns;
+	for (const Set<VisualScript::DataConnection>::Element *F = data_connections.front(); F; F = F->next()) {
+		dataconns.push_back(F->get().from_node);
+		dataconns.push_back(F->get().from_port);
+		dataconns.push_back(F->get().to_node);
+		dataconns.push_back(F->get().to_port);
+	}
+	d["data_connections"] = dataconns;
+
+	d["scroll"] = scroll;
+    return d;
+}
+
+void VisualScriptSubmodule::_bind_methods() {
+	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_data", "_get_data");
+}
+
+void VisualScriptSubmodule::set_scroll(Vector2 p_scroll) {
+	scroll = p_scroll;
+}
+
+Vector2 VisualScriptSubmodule::get_scroll() const {
+	return scroll;
+}
+
+VisualScriptSubmodule::VisualScriptSubmodule() {}
+VisualScriptSubmodule::~VisualScriptSubmodule() {}
+
+void VisualScriptSubmodule::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2()) {}
+void VisualScriptSubmodule::remove_node(int p_id) {}
+bool VisualScriptSubmodule::has_node(int p_id) const {}
+Ref<VisualScriptNode> VisualScriptSubmodule::get_node(int p_id) const {}
+Vector2 VisualScriptSubmodule::get_node_position(int p_id) const {}
+void VisualScriptSubmodule::set_node_position(Vector2 p_pos) {}
+void VisualScriptSubmodule::get_node_list(List<int> *r_nodes) const {}
+
+void VisualScriptSubmodule::set_scroll(Vector2 p_scroll) {}
+Vector2 VisualScriptSubmodule::get_scroll() const {}
+
+void VisualScriptSubmodule::sequence_connect(int p_from_node, int p_from_output, int p_to_node) {}
+void VisualScriptSubmodule::sequence_disconnect(int p_from_node, int p_from_output, int p_to_node) {}
+bool VisualScriptSubmodule::has_sequence_connection(int p_from_node, int p_from_output, int p_to_node) const {}
+// void VisualScriptSubmodule::get_sequence_connection_list(List<VisualScript::SequenceConnection> *r_connection) const {}
+
+
+void VisualScriptSubmodule::data_connect(int p_from_node, int p_from_port, int p_to_node, int p_to_port) {}
+void VisualScriptSubmodule::data_disconnect(int p_from_node, int p_from_port, int p_to_node, int p_to_port) {}
+bool VisualScriptSubmodule::has_data_connection(int p_from_node, int p_from_port, int p_to_node, int p_to_port) const {}
+// void VisualScriptSubmodule::get_data_connection_list(List<VisualScript::DataConnection> *r_connection) const {}
+
+VisualScriptSubmodule::VisualScriptSubmodule() {}
+VisualScriptSubmodule::~VisualScriptSubmodule() {}
+
+/////////////////////
+//////// VisualScript
+//////////////////////
+
+void VisualScript::add_submodule(Ref<VisualScriptSubmodule> p_mod) {
+	if (!has_submodule(p_mod)) {
+		submodules.push_back();
+	}
+}
+Ref<VisualScriptSubmodule> VisualScript::get_submodule() const {}
+bool VisualScript::has_submodule(Ref<VisualScriptSubmodule> p_mod) const {}
+
 void VisualScript::add_function(const StringName &p_name, int func_node_id) {
 	ERR_FAIL_COND(instances.size());
 	ERR_FAIL_COND(!String(p_name).is_valid_identifier());
@@ -1059,6 +1173,11 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 	}
 	is_tool_script = d["is_tool_script"];
 	scroll = d["scroll"];
+	
+	Array submods = d["submodules"];
+	for (int i = 0; i < submods.size(); i++) {
+		add_submodule(submods[i]);
+	}
 
 	// Takes all the rpc methods
 	rpc_functions.clear();
@@ -1254,6 +1373,7 @@ VisualScript::~VisualScript() {
 	for (const List<int>::Element *E = nds.front(); E; E = E->next()) {
 		remove_node(E->get());
 	}
+	submodules.clear();
 }
 
 ////////////////////////////////////////////
