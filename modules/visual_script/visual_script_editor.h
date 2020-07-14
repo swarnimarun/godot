@@ -60,6 +60,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 		EDIT_CUT_NODES,
 		EDIT_PASTE_NODES,
 		EDIT_CREATE_FUNCTION,
+		EXIT_SUBMODULE,
 		REFRESH_GRAPH
 	};
 
@@ -191,6 +192,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 	int error_line;
 
 	void _node_selected(Node *p_node);
+	void _node_double_clicked(Node *p_node);
 	void _center_on_node(int p_id);
 
 	void _node_filter_changed(const String &p_text);

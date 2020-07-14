@@ -1196,8 +1196,8 @@ PropertyInfo VisualScriptVariableGet::get_input_value_port_info(int p_idx) const
 PropertyInfo VisualScriptVariableGet::get_output_value_port_info(int p_idx) const {
 	PropertyInfo pinfo;
 	pinfo.name = "value";
-	if (get_container().is_valid() && get_container()->has_variable(variable)) {
-		PropertyInfo vinfo = get_container()->get_variable_info(variable);
+	if (get_container().is_valid() && Ref<VisualScript>(get_container())->has_variable(variable)) {
+		PropertyInfo vinfo = Ref<VisualScript>(get_container())->get_variable_info(variable);
 		pinfo.type = vinfo.type;
 		pinfo.hint = vinfo.hint;
 		pinfo.hint_string = vinfo.hint_string;
@@ -1302,8 +1302,8 @@ String VisualScriptVariableSet::get_output_sequence_port_text(int p_port) const 
 PropertyInfo VisualScriptVariableSet::get_input_value_port_info(int p_idx) const {
 	PropertyInfo pinfo;
 	pinfo.name = "set";
-	if (get_container().is_valid() && get_container()->has_variable(variable)) {
-		PropertyInfo vinfo = get_container()->get_variable_info(variable);
+	if (get_container().is_valid() && Ref<VisualScript>(get_container())->has_variable(variable)) {
+		PropertyInfo vinfo = Ref<VisualScript>(get_container())->get_variable_info(variable);
 		pinfo.type = vinfo.type;
 		pinfo.hint = vinfo.hint;
 		pinfo.hint_string = vinfo.hint_string;
@@ -2688,7 +2688,7 @@ PropertyInfo VisualScriptSelf::get_input_value_port_info(int p_idx) const {
 PropertyInfo VisualScriptSelf::get_output_value_port_info(int p_idx) const {
 	String type_name;
 	if (get_container().is_valid()) {
-		type_name = get_container()->get_instance_base_type();
+		type_name = Ref<VisualScript>(get_container())->get_instance_base_type();
 	} else {
 		type_name = "instance";
 	}

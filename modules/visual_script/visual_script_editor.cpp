@@ -43,6 +43,7 @@
 #include "visual_script_flow_control.h"
 #include "visual_script_func_nodes.h"
 #include "visual_script_nodes.h"
+#include "visual_script_submodule_nodes.h"
 
 #ifdef TOOLS_ENABLED
 class VisualScriptEditorSignalEdit : public Object {
@@ -2729,6 +2730,20 @@ void VisualScriptEditor::_change_base_type_callback() {
 	undo_redo->commit_action();
 }
 
+void VisualScriptEditor::_node_double_clicked(Node *p_node) {
+    _node_selected(p_node);
+	Ref<VisualScriptSubmoduleNode> vsubnode = p_node->get_meta("__vnode");
+	if (vsubnode.is_null()) {
+		return;
+	}
+	curr_submodule = vsubnode->get_submodule();
+	if (curr_submodule.is_null()) {
+		return;
+	}
+	inside_submodule = true;
+	_update_graph();
+}
+
 void VisualScriptEditor::_node_selected(Node *p_node) {
 	Ref<VisualScriptNode> vnode = p_node->get_meta("__vnode");
 	if (vnode.is_null()) {
@@ -2774,7 +2789,9 @@ void VisualScriptEditor::_end_node_move() {
 }
 
 void VisualScriptEditor::_move_node(int p_id, const Vector2 &p_to) {
-	if (!script->has_node(p_id)) {
+	if (inside_submodule && !curr_submodule->has_node(p_id)) {
+		return;
+	} else if (!script->has_node(p_id)) {
 		return;
 	}
 
@@ -2784,7 +2801,11 @@ void VisualScriptEditor::_move_node(int p_id, const Vector2 &p_to) {
 		Object::cast_to<GraphNode>(node)->set_offset(p_to);
 	}
 
-	script->set_node_position(p_id, p_to / EDSCALE);
+	if (inside_submodule) {
+		curr_submodule->set_node_position(p_id, p_to / EDSCALE);
+	} else {
+		script->set_node_position(p_id, p_to / EDSCALE);
+	}
 }
 
 void VisualScriptEditor::_node_moved(Vector2 p_from, Vector2 p_to, int p_id) {
@@ -4054,6 +4075,11 @@ void VisualScriptEditor::_menu_option(int p_what) {
 		case REFRESH_GRAPH: {
 			_update_graph();
 		} break;
+		case EXIT_SUBMODULE: {
+			inside_submodule = false;
+			updating_graph = false; // force an update
+			_update_graph();
+		} break;
 	}
 }
 
@@ -4253,6 +4279,7 @@ VisualScriptEditor::VisualScriptEditor() {
 	edit_menu->get_popup()->add_separator();
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("visual_script_editor/create_function"), EDIT_CREATE_FUNCTION);
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("visual_script_editor/refresh_nodes"), REFRESH_GRAPH);
+	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("visual_script_editor/exit_modules"), EXIT_SUBMODULE);
 	edit_menu->get_popup()->connect("id_pressed", callable_mp(this, &VisualScriptEditor::_menu_option));
 
 	members_section = memnew(VBoxContainer);
@@ -4299,6 +4326,7 @@ VisualScriptEditor::VisualScriptEditor() {
 	graph->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	graph->set_anchors_and_margins_preset(Control::PRESET_WIDE);
 	graph->connect("node_selected", callable_mp(this, &VisualScriptEditor::_node_selected));
+	graph->connect("node_double_clicked", callable_mp(this, &VisualScriptEditor::_node_double_clicked));
 	graph->connect("_begin_node_move", callable_mp(this, &VisualScriptEditor::_begin_node_move));
 	graph->connect("_end_node_move", callable_mp(this, &VisualScriptEditor::_end_node_move));
 	graph->connect("delete_nodes_request", callable_mp(this, &VisualScriptEditor::_on_nodes_delete));
@@ -4496,6 +4524,7 @@ static void register_editor_callback() {
 	ED_SHORTCUT("visual_script_editor/paste_nodes", TTR("Paste Nodes"), KEY_MASK_CMD + KEY_V);
 	ED_SHORTCUT("visual_script_editor/create_function", TTR("Make Function"), KEY_MASK_CMD + KEY_G);
 	ED_SHORTCUT("visual_script_editor/refresh_nodes", TTR("Refresh Graph"), KEY_MASK_CMD + KEY_R);
+	ED_SHORTCUT("visual_script_editor/exit_modules", TTR("Exit Submodule"), KEY_ESCAPE);
 	ED_SHORTCUT("visual_script_editor/edit_member", TTR("Edit Member"), KEY_MASK_CMD + KEY_E);
 }
 

@@ -240,7 +240,7 @@ Vector2 VisualScriptSubmodule::get_scroll() const {
 	return scroll;
 }
 
-void VisualScriptSubmodule::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2()) {
+void VisualScriptSubmodule::add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos) {
 	ERR_FAIL_COND(nodes.has(p_id)); //id can exist only one in script
 
 	NodeData nd;
@@ -298,12 +298,12 @@ bool VisualScriptSubmodule::has_node(int p_id) const {
 }
 
 Ref<VisualScriptNode> VisualScriptSubmodule::get_node(int p_id) const {
-	ERR_FAIL_COND(!nodes.has(p_id));
+	ERR_FAIL_COND_V(!nodes.has(p_id), Ref<VisualScriptNode>());
 	return nodes[p_id].node;
 }
 
 Vector2 VisualScriptSubmodule::get_node_position(int p_id) const {
-	ERR_FAIL_COND(!nodes.has(p_id));
+	ERR_FAIL_COND_V(!nodes.has(p_id), Point2());
 	return nodes[p_id].pos;
 }
 
@@ -318,19 +318,19 @@ void VisualScriptSubmodule::get_node_list(List<int> *r_nodes) const {
 
 void VisualScriptSubmodule::sequence_connect(int p_from_node, int p_from_output, int p_to_node) {}
 void VisualScriptSubmodule::sequence_disconnect(int p_from_node, int p_from_output, int p_to_node) {}
-bool VisualScriptSubmodule::has_sequence_connection(int p_from_node, int p_from_output, int p_to_node) const {}
+bool VisualScriptSubmodule::has_sequence_connection(int p_from_node, int p_from_output, int p_to_node) const { return false; }
 void VisualScriptSubmodule::get_sequence_connection_list(List<VisualScript::SequenceConnection> *r_connection) const {}
 
 
 void VisualScriptSubmodule::data_connect(int p_from_node, int p_from_port, int p_to_node, int p_to_port) {}
 void VisualScriptSubmodule::data_disconnect(int p_from_node, int p_from_port, int p_to_node, int p_to_port) {}
-bool VisualScriptSubmodule::has_data_connection(int p_from_node, int p_from_port, int p_to_node, int p_to_port) const {}
+bool VisualScriptSubmodule::has_data_connection(int p_from_node, int p_from_port, int p_to_node, int p_to_port) const { return false; }
 void VisualScriptSubmodule::get_data_connection_list(List<VisualScript::DataConnection> *r_connection) const {}
 
 VisualScriptSubmodule::VisualScriptSubmodule() {}
 VisualScriptSubmodule::~VisualScriptSubmodule() {}
 
-void VisualScript::_node_ports_changed(int p_id) {
+void VisualScriptSubmodule::_node_ports_changed(int p_id) {
 	Ref<VisualScriptNode> vsn = nodes[p_id].node;
 
 	vsn->validate_input_default_values();
@@ -338,9 +338,9 @@ void VisualScript::_node_ports_changed(int p_id) {
 	//must revalidate all the functions
 
 	{
-		List<SequenceConnection> to_remove;
+		List<VisualScript::SequenceConnection> to_remove;
 
-		for (Set<SequenceConnection>::Element *E = sequence_connections.front(); E; E = E->next()) {
+		for (Set<VisualScript::SequenceConnection>::Element *E = sequence_connections.front(); E; E = E->next()) {
 			if (E->get().from_node == p_id && E->get().from_output >= vsn->get_output_sequence_port_count()) {
 				to_remove.push_back(E->get());
 			}
@@ -356,9 +356,9 @@ void VisualScript::_node_ports_changed(int p_id) {
 	}
 
 	{
-		List<DataConnection> to_remove;
+		List<VisualScript::DataConnection> to_remove;
 
-		for (Set<DataConnection>::Element *E = data_connections.front(); E; E = E->next()) {
+		for (Set<VisualScript::DataConnection>::Element *E = data_connections.front(); E; E = E->next()) {
 			if (E->get().from_node == p_id && E->get().from_port >= vsn->get_output_value_port_count()) {
 				to_remove.push_back(E->get());
 			}
