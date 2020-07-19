@@ -282,8 +282,9 @@ Node *VisualScriptYieldSignal::_get_base_node() const {
 }
 
 StringName VisualScriptYieldSignal::_get_base_type() const {
-	if (call_mode == CALL_MODE_SELF && get_container().is_valid()) {
-		return Ref<VisualScript>(get_container())->get_instance_base_type();
+	Ref<VisualScript> vs = get_container();
+	if (call_mode == CALL_MODE_SELF && vs.is_valid()) {
+		return vs->get_instance_base_type();
 	} else if (call_mode == CALL_MODE_NODE_PATH && get_container().is_valid()) {
 		Node *path = _get_base_node();
 		if (path) {

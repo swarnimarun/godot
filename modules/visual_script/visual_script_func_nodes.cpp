@@ -116,8 +116,9 @@ Node *VisualScriptFunctionCall::_get_base_node() const {
 }
 
 StringName VisualScriptFunctionCall::_get_base_type() const {
-	if (call_mode == CALL_MODE_SELF && get_container().is_valid()) {
-		return Ref<Script>(get_container())->get_instance_base_type();
+	Ref<Script> sr = get_container();
+	if (call_mode == CALL_MODE_SELF && sr.is_valid()) {
+		return sr->get_instance_base_type();
 	} else if (call_mode == CALL_MODE_NODE_PATH && get_container().is_valid()) {
 		Node *path = _get_base_node();
 		if (path) {
@@ -349,10 +350,11 @@ void VisualScriptFunctionCall::_update_method_cache() {
 			script = node->get_script();
 		}
 	} else if (call_mode == CALL_MODE_SELF) {
-		if (get_container().is_valid()) {
-			type = Ref<Script>(get_container())->get_instance_base_type();
+		Ref<Script> sr = get_container();
+		if (sr.is_valid()) {
+			type = sr->get_instance_base_type();
 			base_type = type; //cache, too
-			script = get_container();
+			script = sr;
 		}
 
 	} else if (call_mode == CALL_MODE_SINGLETON) {
@@ -946,8 +948,9 @@ Node *VisualScriptPropertySet::_get_base_node() const {
 }
 
 StringName VisualScriptPropertySet::_get_base_type() const {
-	if (call_mode == CALL_MODE_SELF && get_container().is_valid()) {
-		return Ref<Script>(get_container())->get_instance_base_type();
+	Ref<Script> sr = get_container();
+	if (call_mode == CALL_MODE_SELF && sr.is_valid()) {
+		return sr->get_instance_base_type();
 	} else if (call_mode == CALL_MODE_NODE_PATH && get_container().is_valid()) {
 		Node *path = _get_base_node();
 		if (path) {
@@ -1054,8 +1057,9 @@ void VisualScriptPropertySet::_update_base_type() {
 			base_type = node->get_class();
 		}
 	} else if (call_mode == CALL_MODE_SELF) {
-		if (get_container().is_valid()) {
-			base_type = Ref<Script>(get_container())->get_instance_base_type();
+		Ref<Script> sr = get_container();
+		if (sr.is_valid()) {
+			base_type = sr->get_instance_base_type();
 		}
 	}
 }
@@ -1141,8 +1145,9 @@ void VisualScriptPropertySet::_update_cache() {
 				script = node->get_script();
 			}
 		} else if (call_mode == CALL_MODE_SELF) {
-			if (get_container().is_valid()) {
-				type = Ref<Script>(get_container())->get_instance_base_type();
+			Ref<Script> sr = get_container();
+			if (sr.is_valid()) {
+				type = sr->get_instance_base_type();
 				base_type = type; //cache, too
 				script = get_container();
 			}
@@ -1639,8 +1644,9 @@ void VisualScriptPropertyGet::_update_base_type() {
 			base_type = node->get_class();
 		}
 	} else if (call_mode == CALL_MODE_SELF) {
-		if (get_container().is_valid()) {
-			base_type = Ref<Script>(get_container())->get_instance_base_type();
+		Ref<Script> sr = get_container();
+		if (sr.is_valid()) {
+			base_type = sr->get_instance_base_type();
 		}
 	}
 }
@@ -1686,8 +1692,9 @@ Node *VisualScriptPropertyGet::_get_base_node() const {
 }
 
 StringName VisualScriptPropertyGet::_get_base_type() const {
-	if (call_mode == CALL_MODE_SELF && get_container().is_valid()) {
-		return Ref<Script>(get_container())->get_instance_base_type();
+	Ref<Script> sr = get_container();
+	if (call_mode == CALL_MODE_SELF && sr.is_valid()) {
+		return sr->get_instance_base_type();
 	} else if (call_mode == CALL_MODE_NODE_PATH && get_container().is_valid()) {
 		Node *path = _get_base_node();
 		if (path) {
@@ -1811,8 +1818,9 @@ void VisualScriptPropertyGet::_update_cache() {
 				script = node->get_script();
 			}
 		} else if (call_mode == CALL_MODE_SELF) {
-			if (get_container().is_valid()) {
-				type = Ref<Script>(get_container())->get_instance_base_type();
+			Ref<Script> sr = get_container();
+			if (sr.is_valid()) {
+				type = sr->get_instance_base_type();
 				base_type = type; //cache, too
 				script = get_container();
 			}
