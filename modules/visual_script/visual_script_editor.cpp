@@ -2731,7 +2731,7 @@ void VisualScriptEditor::_change_base_type_callback() {
 }
 
 void VisualScriptEditor::_node_double_clicked(Node *p_node) {
-    _node_selected(p_node);
+	_node_selected(p_node);
 	Ref<VisualScriptSubmoduleNode> vsubnode = p_node->get_meta("__vnode");
 	if (vsubnode.is_null()) {
 		return;

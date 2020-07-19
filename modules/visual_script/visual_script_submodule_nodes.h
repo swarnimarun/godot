@@ -6,7 +6,8 @@
 class VisualScriptSubmoduleNode : public VisualScriptNode {
 	GDCLASS(VisualScriptSubmoduleNode, VisualScriptNode);
 
-    Ref<VisualScriptSubmodule> submodule;
+	Ref<VisualScriptSubmodule> submodule;
+
 protected:
 	static void _bind_methods();
 
@@ -32,7 +33,7 @@ public:
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
 
 	VisualScriptSubmoduleNode();
-    ~VisualScriptSubmoduleNode();
+	~VisualScriptSubmoduleNode();
 };
 
 void register_visual_script_submodule_nodes();
