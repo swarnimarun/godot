@@ -39,6 +39,7 @@
 class VisualScriptInstance;
 class VisualScriptNodeInstance;
 class VisualScript;
+class VisualScriptSubmodule;
 
 class VisualScriptNode : public Resource {
 	GDCLASS(VisualScriptNode, Resource);

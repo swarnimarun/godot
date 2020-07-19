@@ -2741,6 +2741,7 @@ void VisualScriptEditor::_node_double_clicked(Node *p_node) {
 		return;
 	}
 	inside_submodule = true;
+	base_type_select->hide();
 	_update_graph();
 }
 
@@ -4078,6 +4079,7 @@ void VisualScriptEditor::_menu_option(int p_what) {
 		case EXIT_SUBMODULE: {
 			inside_submodule = false;
 			updating_graph = false; // force an update
+			base_type_select->show();
 			_update_graph();
 		} break;
 	}
@@ -4265,6 +4267,7 @@ VisualScriptEditor::VisualScriptEditor() {
 	updating_graph = false;
 	saved_pos_dirty = false;
 	saved_position = Vector2(0, 0);
+	inside_submodule = false;
 
 	edit_menu = memnew(MenuButton);
 	edit_menu->set_text(TTR("Edit"));
