@@ -390,11 +390,26 @@ void VisualScript::add_submodule(int p_id, Ref<VisualScriptSubmodule> p_mod) {
 		submodules[p_id] = p_mod;
 	}
 }
+
 Ref<VisualScriptSubmodule> VisualScript::get_submodule(int p_id) const {
 	return submodules[p_id];
 }
+
 bool VisualScript::has_submodule(int p_id) const {
 	return submodules.has(p_id);
+}
+
+int VisualScript::get_available_submodule_id() const {
+	// TODO: Maybe add a class instance counter here to get the available id??
+	List<int> smods;
+	submodules.get_key_list(&smods);
+	int max = -1;
+	for (const List<int>::Element *E = smods.front(); E; E = E->next()) {
+		if (E->get() > max) {
+			max = E->get();
+		}
+	}
+	return (max + 1);
 }
 
 void VisualScript::add_function(const StringName &p_name, int func_node_id) {
