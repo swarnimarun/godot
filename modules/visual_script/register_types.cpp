@@ -55,7 +55,11 @@ void register_visual_script_types() {
 	ClassDB::register_class<VisualScript>();
 	ClassDB::register_class<VisualScriptSubmodule>();
 	ClassDB::register_virtual_class<VisualScriptNode>();
+
 	ClassDB::register_class<VisualScriptSubmoduleNode>();
+	ClassDB::register_class<VisualScriptSubmoduleEntryNode>();
+	ClassDB::register_class<VisualScriptSubmoduleExitNode>();
+
 	ClassDB::register_class<VisualScriptFunctionState>();
 	ClassDB::register_class<VisualScriptFunction>();
 	ClassDB::register_virtual_class<VisualScriptLists>();
