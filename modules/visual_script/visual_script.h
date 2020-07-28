@@ -247,7 +247,7 @@ private:
 
 	bool is_tool_script;
 
-	HashMap<int, Ref<VisualScriptSubmodule>> submodules; // submodules in the visualscript
+	HashMap<StringName, Ref<VisualScriptSubmodule>> submodules; // submodules in the visualscript
 
 #ifdef TOOLS_ENABLED
 	Set<PlaceHolderScriptInstance *> placeholders;
@@ -272,11 +272,12 @@ public:
 	void set_scroll(const Vector2 &p_scroll);
 	Vector2 get_scroll() const;
 
-	void add_submodule(int p_id, Ref<VisualScriptSubmodule> p_mod);
-	void remove_submodule(int p_id);
-	Ref<VisualScriptSubmodule> get_submodule(int p_id) const;
-	bool has_submodule(int p_id) const;
-	int get_available_submodule_id() const;
+	void add_submodule(const StringName &p_name, Ref<VisualScriptSubmodule> p_mod);
+	void remove_submodule(const StringName &p_name);
+	Ref<VisualScriptSubmodule> get_submodule(const StringName &p_name) const;
+	void get_submodule_list(List<StringName> *r_submodule_names) const;
+	bool has_submodule(const StringName &p_name) const;
+	String validate_submodule_name(const StringName &p_name) const;
 
 	void add_function(const StringName &p_name, int func_node_id);
 	bool has_function(const StringName &p_name) const;
@@ -654,6 +655,9 @@ private:
 	};
 	HashMap<int, NodeData> nodes;
 
+	NodeData _input;
+	NodeData _output;
+
 	Set<VisualScript::DataConnection> data_connections;
 	Set<VisualScript::SequenceConnection> sequence_connections;
 
@@ -674,6 +678,7 @@ public:
 	Vector2 get_node_position(int p_id) const;
 	void set_node_position(int p_id, const Point2 &p_pos);
 	void get_node_list(List<int> *r_nodes) const;
+	int get_available_id() const;
 
 	void set_scroll(Vector2 p_scroll);
 	Vector2 get_scroll() const;
@@ -689,6 +694,7 @@ public:
 	void get_data_connection_list(List<VisualScript::DataConnection> *r_connection) const;
 
 	void _node_ports_changed(int p_id);
+	Set<int> get_output_sequence_ports_connected(int from_node);
 
 	VisualScriptSubmodule();
 	~VisualScriptSubmodule();
