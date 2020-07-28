@@ -160,6 +160,9 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	static Clipboard *clipboard;
 
+	Button *func_btn;
+	HBoxContainer *top_bar;
+
 	PopupMenu *member_popup;
 	MemberType member_type;
 	String member_name;
@@ -177,6 +180,8 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	Ref<VisualScriptSubmodule> curr_submodule; // currently selected submodule
 	bool inside_submodule; // bool to perform quick check to see whether we are editing submodule or the actual script.
+	void _load_submodule(int p_select, int p_id);
+	void _new_submodule(int p_id);
 
 	void _port_action_menu(int p_option);
 
@@ -234,7 +239,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	bool node_has_sequence_connections(int p_id);
 
-	void _generic_search(String p_base_type = "", Vector2 pos = Vector2(), bool node_centered = false);
+	void _generic_search(String p_base_type = "", Vector2 pos = Vector2(), bool node_centered = false, bool p_from_nil = false);
 
 	void _input(const Ref<InputEvent> &p_event);
 	void _graph_gui_input(const Ref<InputEvent> &p_event);
