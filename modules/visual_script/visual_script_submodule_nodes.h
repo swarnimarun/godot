@@ -9,6 +9,7 @@ class VisualScriptSubmoduleNode : public VisualScriptNode {
 
 	Ref<VisualScriptSubmodule> submodule;
 	StringName submodule_name;
+
 protected:
 	static void _bind_methods();
 

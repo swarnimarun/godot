@@ -18,7 +18,6 @@ void VisualScriptSubmoduleNode::set_submodule_by_name(const StringName &p_name) 
 	ERR_FAIL_COND(!submodule.is_valid());
 }
 
-
 int VisualScriptSubmoduleNode::get_output_sequence_port_count() const {
 	return 1; // don't need much more
 }
@@ -127,7 +126,7 @@ public:
 	}
 };
 
-VisualScriptNodeInstance* VisualScriptSubmoduleEntryNode::instance(VisualScriptInstance *p_instance) {
+VisualScriptNodeInstance *VisualScriptSubmoduleEntryNode::instance(VisualScriptInstance *p_instance) {
 	VisualScriptSubmoduleEntryNodeInstance *instance = memnew(VisualScriptSubmoduleEntryNodeInstance);
 	//instance->node = this;
 	instance->instance = p_instance;
@@ -136,8 +135,6 @@ VisualScriptNodeInstance* VisualScriptSubmoduleEntryNode::instance(VisualScriptI
 
 VisualScriptSubmoduleEntryNode::VisualScriptSubmoduleEntryNode() {}
 VisualScriptSubmoduleEntryNode::~VisualScriptSubmoduleEntryNode() {}
-
-
 
 int VisualScriptSubmoduleExitNode::get_input_value_port_count() const {
 	return inputports.size();
@@ -151,7 +148,6 @@ PropertyInfo VisualScriptSubmoduleExitNode::get_input_value_port_info(int p_idx)
 	pi.type = inputports[p_idx].type;
 	return pi;
 }
-
 
 class VisualScriptSubmoduleExitNodeInstance : public VisualScriptNodeInstance {
 public:
@@ -169,7 +165,7 @@ public:
 	}
 };
 
-VisualScriptNodeInstance* VisualScriptSubmoduleExitNode::instance(VisualScriptInstance *p_instance) {
+VisualScriptNodeInstance *VisualScriptSubmoduleExitNode::instance(VisualScriptInstance *p_instance) {
 	VisualScriptSubmoduleExitNodeInstance *instance = memnew(VisualScriptSubmoduleExitNodeInstance);
 	//instance->node = this;
 	instance->instance = p_instance;
