@@ -2933,7 +2933,7 @@ void VisualScriptEditor::_node_moved(Vector2 p_from, Vector2 p_to, int p_id) {
 
 void VisualScriptEditor::_remove_node(int p_id) {
 	undo_redo->create_action(TTR("Remove VisualScript Node"));
-	Object* objptr = script.ptr();
+	Object *objptr = script.ptr();
 	if (inside_submodule) {
 		objptr = curr_submodule.ptr();
 	}
@@ -2995,7 +2995,7 @@ bool VisualScriptEditor::node_has_sequence_connections(int p_id) {
 void VisualScriptEditor::_graph_connected(const String &p_from, int p_from_slot, const String &p_to, int p_to_slot) {
 	Ref<VisualScriptNode> from_node;
 	Ref<VisualScriptNode> to_node;
-	Object* objptr = script.ptr();
+	Object *objptr = script.ptr();
 	if (inside_submodule) {
 		from_node = curr_submodule->get_node(p_from.to_int());
 		to_node = curr_submodule->get_node(p_to.to_int());
@@ -3094,7 +3094,7 @@ void VisualScriptEditor::_graph_connected(const String &p_from, int p_from_slot,
 void VisualScriptEditor::_graph_disconnected(const String &p_from, int p_from_slot, const String &p_to, int p_to_slot) {
 	Ref<VisualScriptNode> from_node;
 	Ref<VisualScriptNode> to_node;
-	Object* objptr = script.ptr();
+	Object *objptr = script.ptr();
 	if (inside_submodule) {
 		from_node = curr_submodule->get_node(p_from.to_int());
 		to_node = curr_submodule->get_node(p_to.to_int());
