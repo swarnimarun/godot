@@ -87,6 +87,7 @@ VisualScriptNodeInstance *VisualScriptSubmoduleNode::instance(VisualScriptInstan
 VisualScriptSubmoduleNode::VisualScriptSubmoduleNode() {
 	submodule_name = "";
 }
+
 VisualScriptSubmoduleNode::~VisualScriptSubmoduleNode() {}
 
 // VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
@@ -134,6 +135,7 @@ VisualScriptNodeInstance *VisualScriptSubmoduleEntryNode::instance(VisualScriptI
 }
 
 VisualScriptSubmoduleEntryNode::VisualScriptSubmoduleEntryNode() {}
+
 VisualScriptSubmoduleEntryNode::~VisualScriptSubmoduleEntryNode() {}
 
 int VisualScriptSubmoduleExitNode::get_input_value_port_count() const {
@@ -173,4 +175,5 @@ VisualScriptNodeInstance *VisualScriptSubmoduleExitNode::instance(VisualScriptIn
 }
 
 VisualScriptSubmoduleExitNode::VisualScriptSubmoduleExitNode() {}
+
 VisualScriptSubmoduleExitNode::~VisualScriptSubmoduleExitNode() {}
