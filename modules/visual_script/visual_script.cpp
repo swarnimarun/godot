@@ -1870,14 +1870,29 @@ Variant VisualScriptInstance::_call_internal(const StringName &p_method, void *p
 			}
 		}
 
-		VSDEBUG("STEP - STARTSEQ: " + itos(start_mode));
+		int ret = 0;
 
-		int ret = node->step(input_args, output_args, start_mode, working_mem, r_error, error_str);
+		if (Ref<VisualScriptSubmoduleNode> modnode = node->get_base_node(); modnode.is_valid()) {
+			// call the submodule and get return?
+			auto s = modnode->get_submodule_name();
+			// print_line(s);
+			auto t = call(s, input_args, node->input_port_count, r_error);
+			if (r_error.error != Callable::CallError::CALL_OK) {
+				//use error from step
+				error = true;
+				break;
+			}
+			// _call_internal(modnode->get_submodule_name(), void *p_stack, int p_stack_size, VisualScriptNodeInstance *p_node, int p_flow_stack_pos, int p_pass, bool p_resuming_yield, Callable::CallError &r_error)
+		} else {
+			VSDEBUG("STEP - STARTSEQ: " + itos(start_mode));
 
-		if (r_error.error != Callable::CallError::CALL_OK) {
-			//use error from step
-			error = true;
-			break;
+			ret = node->step(input_args, output_args, start_mode, working_mem, r_error, error_str);
+
+			if (r_error.error != Callable::CallError::CALL_OK) {
+				//use error from step
+				error = true;
+				break;
+			}
 		}
 
 		if (ret & VisualScriptNodeInstance::STEP_YIELD_BIT) {
@@ -2188,7 +2203,7 @@ Variant VisualScriptInstance::call(const StringName &p_method, const Variant **p
 		flow_stack[0] = node->get_id();
 	}
 
-	VSDEBUG("ARGUMENTS: " + itos(f->argument_count) = " RECEIVED: " + itos(p_argcount));
+	VSDEBUG("ARGUMENTS: " + itos(f->argument_count) + " RECEIVED: " + itos(p_argcount));
 
 	if (p_argcount < f->argument_count) {
 		r_error.error = Callable::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS;
@@ -2334,15 +2349,30 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 	{
 		List<StringName> keys;
 		script->functions.get_key_list(&keys);
+		script->submodules.get_key_list(&keys);
+		int offset_node_id = 0;
+		int script_end = script->get_available_id();
 		for (const List<StringName>::Element *E = keys.front(); E; E = E->next()) {
-			const VisualScript::Function vsfn = p_script->functions[E->get()];
+			bool isSubmod = script->submodules.has(E->get());
+			int node_id_offset = 0;
 			Function function;
-			function.node = vsfn.func_id;
-			function.max_stack = 0;
-			function.flow_stack_size = 0;
-			function.pass_stack_size = 0;
-			function.node_count = 0;
-
+			if (!isSubmod) {
+				const VisualScript::Function vsfn = p_script->functions[E->get()];
+				function.node = vsfn.func_id;
+				function.max_stack = 0;
+				function.flow_stack_size = 0;
+				function.pass_stack_size = 0;
+				function.node_count = 0;
+			} else {
+				// for submodule add the node count to the offset_node_id
+				offset_node_id += script->submodules[E->get()]->get_available_id();
+				node_id_offset = script_end + offset_node_id;
+				function.node = 0;
+				function.max_stack = 0;
+				function.flow_stack_size = 0;
+				function.pass_stack_size = 0;
+				function.node_count = 0;
+			}
 			Map<StringName, int> local_var_indices;
 
 			if (function.node < 0) {
@@ -2350,8 +2380,8 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				ERR_CONTINUE(function.node < 0);
 			}
 
-			{
-				Ref<VisualScriptFunction> func_node = script->get_node(vsfn.func_id);
+			if (!isSubmod) {
+				Ref<VisualScriptFunction> func_node = script->get_node(function.node);
 
 				if (func_node.is_null()) {
 					VisualScriptLanguage::singleton->debug_break_parse(get_script()->get_path(), 0, "No VisualScriptFunction typed start node in function: " + String(E->get()));
@@ -2363,6 +2393,19 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				function.max_stack += function.argument_count;
 				function.flow_stack_size = func_node->is_stack_less() ? 0 : func_node->get_stack_size();
 				max_input_args = MAX(max_input_args, function.argument_count);
+			} else {
+				Ref<VisualScriptSubmoduleEntryNode> entry_node = script->submodules[E->get()]->get_node(function.node);
+
+				if (entry_node.is_null()) {
+					VisualScriptLanguage::singleton->debug_break_parse(get_script()->get_path(), 0, "No VisualScriptSubmoduleEntryNode typed start node in submodule: " + String(E->get()));
+				}
+
+				ERR_CONTINUE(!entry_node.is_valid());
+
+				function.argument_count = entry_node->get_output_value_port_count();
+				function.max_stack += function.argument_count;
+				function.flow_stack_size = entry_node->is_stack_less() ? 0 : entry_node->get_stack_size();
+				max_input_args = MAX(max_input_args, function.argument_count);
 			}
 			// function nodes graphs
 			Set<VisualScript::SequenceConnection> seqconns;
@@ -2372,8 +2415,9 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			{
 				List<int> nd_queue;
 				nd_queue.push_back(function.node);
+				auto sequence_connections = isSubmod ? script->submodules[E->get()]->sequence_connections : script->sequence_connections;
 				while (!nd_queue.empty()) {
-					for (const Set<VisualScript::SequenceConnection>::Element *F = script->sequence_connections.front(); F; F = F->next()) {
+					for (const Set<VisualScript::SequenceConnection>::Element *F = sequence_connections.front(); F; F = F->next()) {
 						if (nd_queue.front()->get() == F->get().from_node && !node_ids.has(F->get().to_node)) {
 							nd_queue.push_back(F->get().to_node);
 							node_ids.insert(F->get().to_node);
@@ -2384,8 +2428,9 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					}
 					nd_queue.pop_front();
 				}
+				auto data_connections = isSubmod ? script->submodules[E->get()]->data_connections : script->data_connections;
 				HashMap<int, HashMap<int, Pair<int, int>>> dc_lut; // :: to -> to_port -> (from, from_port)
-				for (const Set<VisualScript::DataConnection>::Element *F = script->data_connections.front(); F; F = F->next()) {
+				for (const Set<VisualScript::DataConnection>::Element *F = data_connections.front(); F; F = F->next()) {
 					dc_lut[F->get().to_node][F->get().to_port] = Pair<int, int>(F->get().from_node, F->get().from_port);
 				}
 				for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
@@ -2413,14 +2458,18 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			//multiple passes are required to set up this complex thing..
 			//first create the nodes
 			for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
-				Ref<VisualScriptNode> node = script->nodes[F->get()].node;
-
+				Ref<VisualScriptNode> node;
+				if (isSubmod) {
+					node = script->submodules[E->get()]->nodes[F->get()].node;
+				} else {
+					node = script->nodes[F->get()].node;
+				}
 				VisualScriptNodeInstance *instance = node->instance(this); //create instance
 				ERR_FAIL_COND(!instance);
 
 				instance->base = node.ptr();
 
-				instance->id = F->get();
+				instance->id = node_id_offset + F->get();
 				instance->input_port_count = node->get_input_value_port_count();
 				instance->input_ports = NULL;
 				instance->output_port_count = node->get_output_value_port_count();
@@ -2429,6 +2478,12 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				instance->sequence_index = function.node_count++;
 				instance->sequence_outputs = NULL;
 				instance->pass_idx = -1;
+				if (true) {
+					print_line("class name of node: " + instance->get_base_node()->get_class_name());
+					print_line("input_port_count of submod node: " + String::num_int64(instance->input_port_count));
+					print_line("output_port_count of submod node: " + String::num_int64(instance->output_port_count));
+					print_line("output_seq_port_count of submod node: " + String::num_int64(instance->sequence_output_count));
+				}
 
 				if (instance->input_port_count) {
 					instance->input_ports = memnew_arr(int, instance->input_port_count);
@@ -2479,7 +2534,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				max_input_args = MAX(max_input_args, instance->input_port_count);
 				max_output_args = MAX(max_output_args, instance->output_port_count);
 
-				instances[F->get()] = instance;
+				instances[node_id_offset + F->get()] = instance; // move instance from available_id + submodule id for submodule nodes
 			}
 
 			function.trash_pos = function.max_stack++; // create pos for trash
@@ -2487,10 +2542,10 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			//second pass, do data connections
 			for (const Set<VisualScript::DataConnection>::Element *F = dataconns.front(); F; F = F->next()) {
 				VisualScript::DataConnection dc = F->get();
-				ERR_CONTINUE(!instances.has(dc.from_node));
-				VisualScriptNodeInstance *from = instances[dc.from_node];
-				ERR_CONTINUE(!instances.has(dc.to_node));
-				VisualScriptNodeInstance *to = instances[dc.to_node];
+				ERR_CONTINUE(!instances.has(node_id_offset + dc.from_node)); // use offset for instance from available_id + submodule id for submodule nodes
+				VisualScriptNodeInstance *from = instances[node_id_offset + dc.from_node];
+				ERR_CONTINUE(!instances.has(node_id_offset + dc.to_node));
+				VisualScriptNodeInstance *to = instances[node_id_offset + dc.to_node];
 				ERR_CONTINUE(dc.from_port >= from->output_port_count);
 				ERR_CONTINUE(dc.to_port >= to->input_port_count);
 
@@ -2514,10 +2569,10 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			//third pass, do sequence connections
 			for (const Set<VisualScript::SequenceConnection>::Element *F = seqconns.front(); F; F = F->next()) {
 				VisualScript::SequenceConnection sc = F->get();
-				ERR_CONTINUE(!instances.has(sc.from_node));
-				VisualScriptNodeInstance *from = instances[sc.from_node];
-				ERR_CONTINUE(!instances.has(sc.to_node));
-				VisualScriptNodeInstance *to = instances[sc.to_node];
+				ERR_CONTINUE(!instances.has(node_id_offset + sc.from_node)); // use offset for instance from available_id + submodule id for submodule nodes
+				VisualScriptNodeInstance *from = instances[node_id_offset + sc.from_node];
+				ERR_CONTINUE(!instances.has(node_id_offset + sc.to_node));
+				VisualScriptNodeInstance *to = instances[node_id_offset + sc.to_node];
 				ERR_CONTINUE(sc.from_output >= from->sequence_output_count);
 
 				from->sequence_outputs[sc.from_output] = to;
@@ -2527,10 +2582,14 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			// 1) unassigned input ports to default values
 			// 2) connect unassigned output ports to trash
 			for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
-				ERR_CONTINUE(!instances.has(F->get()));
-
-				Ref<VisualScriptNode> node = script->nodes[F->get()].node;
-				VisualScriptNodeInstance *instance = instances[F->get()];
+				ERR_CONTINUE(!instances.has(node_id_offset + F->get())); // use offset for instance from available_id + submodule id for submodule nodes
+				Ref<VisualScriptNode> node;
+				if (!isSubmod) {
+					node = script->nodes[F->get()].node;
+				} else {
+					node = script->submodules[E->get()]->nodes[F->get()].node;
+				}
+				VisualScriptNodeInstance *instance = instances[node_id_offset + F->get()];
 
 				// connect to default values
 				for (int i = 0; i < instance->input_port_count; i++) {
@@ -2548,7 +2607,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					}
 				}
 			}
-
+			function.node += node_id_offset;
 			functions[E->get()] = function;
 		}
 	}

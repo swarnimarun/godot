@@ -559,14 +559,24 @@ void VisualScriptEditor::_update_graph_connections() {
 	}
 
 	List<VisualScript::DataConnection> data_conns;
-	script->get_data_connection_list(&data_conns);
+	if (inside_submodule) {
+		curr_submodule->get_data_connection_list(&data_conns);
+	} else {
+		script->get_data_connection_list(&data_conns);
+	}
 
 	for (List<VisualScript::DataConnection>::Element *E = data_conns.front(); E; E = E->next()) {
 		VisualScript::DataConnection dc = E->get();
 
-		Ref<VisualScriptNode> from_node = script->get_node(E->get().from_node);
-		Ref<VisualScriptNode> to_node = script->get_node(E->get().to_node);
-
+		Ref<VisualScriptNode> from_node;
+		Ref<VisualScriptNode> to_node;
+		if (inside_submodule) {
+			from_node = curr_submodule->get_node(E->get().from_node);
+			to_node = curr_submodule->get_node(E->get().to_node);
+		} else {
+			from_node = script->get_node(E->get().from_node);
+			to_node = script->get_node(E->get().to_node);
+		}
 		if (to_node->has_input_sequence_port()) {
 			dc.to_port++;
 		}
@@ -689,11 +699,15 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 		Ref<VisualScriptLists> nd_list = node;
 		bool is_vslist = nd_list.is_valid();
 		Ref<VisualScriptSubmoduleNode> nd_mod = node;
-		if (nd_mod.is_valid()) {
+		bool is_submod = nd_mod.is_valid();
+		if (is_submod) {
 			HBoxContainer *hbnc = memnew(HBoxContainer);
 			Button *btn = memnew(Button);
-			btn->set_text(TTR("New*"));
+			btn->set_text(TTR("New"));
 			btn->connect("pressed", callable_mp(this, &VisualScriptEditor::_new_submodule), varray(E->get()), CONNECT_DEFERRED);
+			Button *btn1 = memnew(Button);
+			btn1->set_text(TTR("Load from Path"));
+			btn1->connect("pressed", callable_mp(this, &VisualScriptEditor::_load_submodule_from_path), varray(E->get()), CONNECT_DEFERRED);
 			OptionButton *opbtn = memnew(OptionButton);
 			List<StringName> opts;
 			script->get_submodule_list(&opts);
@@ -709,8 +723,10 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 			opbtn->set_custom_minimum_size(Size2(100 * EDSCALE, 0));
 			opbtn->connect("item_selected", callable_mp(this, &VisualScriptEditor::_load_submodule), varray(E->get()), CONNECT_DEFERRED);
 			hbnc->add_child(btn);
+			hbnc->add_child(btn1);
 			hbnc->add_child(opbtn);
 			gnode->add_child(hbnc);
+			has_gnode_text = true;
 		} else if (is_vslist) {
 			HBoxContainer *hbnc = memnew(HBoxContainer);
 			if (nd_list->is_input_port_editable()) {
@@ -1027,8 +1043,8 @@ void VisualScriptEditor::_new_submodule(int p_id) {
 	}
 	script->add_submodule(s, new_submodule);
 	undo_redo->create_action("New Submodule");
-	undo_redo->add_do_method(vsn.ptr(), "set_submodule", s, new_submodule);
-	undo_redo->add_undo_method(vsn.ptr(), "set_submodule", vsn->get_submodule());
+	undo_redo->add_do_method(vsn.ptr(), "set_submodule", s);
+	undo_redo->add_undo_method(vsn.ptr(), "set_submodule", vsn->get_submodule_name());
 	undo_redo->add_do_method(this, "_update_graph");
 	undo_redo->add_undo_method(this, "_update_graph");
 	undo_redo->commit_action();
@@ -1039,18 +1055,30 @@ void VisualScriptEditor::_load_submodule(int p_select, int p_id) {
 	if (p_select == 0 || !vsn.is_valid()) {
 		return;
 	}
-	List<StringName> opts;
-	script->get_submodule_list(&opts);
 	undo_redo->create_action("Load Submodule");
-	undo_redo->add_do_method(vsn.ptr(), "set_submodule", opts[p_select - 1], script->get_submodule(opts[p_select - 1]));
-	undo_redo->add_undo_method(vsn.ptr(), "set_submodule", vsn->get_submodule());
+	if (p_select == 0) {
+		undo_redo->add_do_method(vsn.ptr(), "set_submodule", "");
+		undo_redo->add_undo_method(vsn.ptr(), "set_submodule", vsn->get_submodule_name());
+	} else {
+		List<StringName> opts;
+		script->get_submodule_list(&opts);
+		undo_redo->add_do_method(vsn.ptr(), "set_submodule", opts[p_select - 1]);
+		undo_redo->add_undo_method(vsn.ptr(), "set_submodule", vsn->get_submodule_name());
+	}
 	undo_redo->add_do_method(this, "_update_graph");
 	undo_redo->add_undo_method(this, "_update_graph");
 	undo_redo->commit_action();
 }
+void VisualScriptEditor::_load_submodule_from_path(int p_select, int p_id) {
+}
 
 void VisualScriptEditor::_change_port_type(int p_select, int p_id, int p_port, bool is_input) {
-	Ref<VisualScriptLists> vsn = script->get_node(p_id);
+	Ref<VisualScriptLists> vsn;
+	if (inside_submodule) {
+		vsn = curr_submodule->get_node(p_id);
+	} else {
+		vsn = script->get_node(p_id);
+	}
 	if (!vsn.is_valid()) {
 		return;
 	}
@@ -1063,6 +1091,8 @@ void VisualScriptEditor::_change_port_type(int p_select, int p_id, int p_port, b
 		undo_redo->add_do_method(vsn.ptr(), "set_output_data_port_type", p_port, Variant::Type(p_select));
 		undo_redo->add_undo_method(vsn.ptr(), "set_output_data_port_type", p_port, vsn->get_output_value_port_info(p_port).type);
 	}
+	undo_redo->add_do_method(this, "_update_graph");
+	undo_redo->add_undo_method(this, "_update_graph");
 	undo_redo->commit_action();
 }
 
@@ -1074,7 +1104,12 @@ void VisualScriptEditor::_update_node_size(int p_id) {
 }
 
 void VisualScriptEditor::_port_name_focus_out(const Node *p_name_box, int p_id, int p_port, bool is_input) {
-	Ref<VisualScriptLists> vsn = script->get_node(p_id);
+	Ref<VisualScriptLists> vsn;
+	if (inside_submodule) {
+		vsn = curr_submodule->get_node(p_id);
+	} else {
+		vsn = script->get_node(p_id);
+	}
 	if (!vsn.is_valid()) {
 		return;
 	}
@@ -1485,9 +1520,9 @@ void VisualScriptEditor::_member_button(Object *p_item, int p_column, int p_butt
 
 				undo_redo->create_action(TTR("Add Function"));
 				undo_redo->add_do_method(script.ptr(), "add_function", name, fn_id);
-				undo_redo->add_do_method(script.ptr(), "add_node", fn_id, func_node, ofs);
 				undo_redo->add_undo_method(script.ptr(), "remove_function", name);
-				undo_redo->add_do_method(script.ptr(), "remove_node", fn_id);
+				undo_redo->add_do_method(script.ptr(), "add_node", fn_id, func_node, ofs);
+				undo_redo->add_undo_method(script.ptr(), "remove_node", fn_id);
 				undo_redo->add_do_method(this, "_update_members");
 				undo_redo->add_undo_method(this, "_update_members");
 				undo_redo->add_do_method(this, "_update_graph");
@@ -2710,7 +2745,7 @@ void VisualScriptEditor::goto_line(int p_line, bool p_with_error) {
 			_update_graph();
 			_update_members();
 
-			call_deferred("call_deferred", "_center_on_node", E->get(), p_line); //editor might be just created and size might not exist yet
+			call_deferred("call_deferred", "_center_on_node", p_line); //editor might be just created and size might not exist yet
 			return;
 		}
 	}
@@ -2850,10 +2885,8 @@ void VisualScriptEditor::_node_double_clicked(Node *p_node) {
 	if (vsubnode.is_null()) {
 		return;
 	}
-	curr_submodule = vsubnode->get_submodule();
-	if (curr_submodule.is_null()) {
-		return;
-	}
+	curr_submodule = script->get_submodule(vsubnode->get_submodule_name());
+	ERR_FAIL_COND(curr_submodule.is_null());
 	inside_submodule = true;
 	//top_bar->hide();
 	base_type_select->hide();

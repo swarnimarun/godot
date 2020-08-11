@@ -31,22 +31,23 @@
 #include "visual_script_submodule_nodes.h"
 
 void VisualScriptSubmoduleNode::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_submodule", "submodule"), &VisualScriptSubmoduleNode::set_submodule);
-	ClassDB::bind_method(D_METHOD("get_submodule"), &VisualScriptSubmoduleNode::get_submodule);
-
+	ClassDB::bind_method(D_METHOD("set_submodule", "submodule_name"), &VisualScriptSubmoduleNode::set_submodule);
 	ClassDB::bind_method(D_METHOD("get_submodule_name"), &VisualScriptSubmoduleNode::get_submodule_name);
-	ClassDB::bind_method(D_METHOD("set_submodule_by_name", "submodule_name"), &VisualScriptSubmoduleNode::set_submodule_by_name);
 
-	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "submodule_name", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "set_submodule_by_name", "get_submodule_name");
+	// TODO: Try to figure out how to do something to show inspector values based on visual script context....
+	// Ref<VisualScript> vs = get_container();
+	// String modules = "None";
+	// if (vs.is_valid()) {
+	// 	List<StringName> mods; 
+	// 	vs->get_submodule_list(&mods);
+	// 	for (const List<StringName>::Element *E = mods.front(); E; E = E->next()) {
+	// 		modules += ", " + E->get();
+	// 	}
+	// }
+
+	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "submodule_name"), "set_submodule", "get_submodule_name");
 }
 
-void VisualScriptSubmoduleNode::set_submodule_by_name(const StringName &p_name) {
-	Ref<VisualScript> vs = get_container();
-	ERR_FAIL_COND(!vs.is_valid());
-
-	submodule = vs->get_submodule(p_name);
-	ERR_FAIL_COND(!submodule.is_valid());
-}
 
 int VisualScriptSubmoduleNode::get_output_sequence_port_count() const {
 	return 1; // don't need much more
@@ -58,17 +59,25 @@ String VisualScriptSubmoduleNode::get_output_sequence_port_text(int p_port) cons
 	return ""; // not needed
 }
 int VisualScriptSubmoduleNode::get_input_value_port_count() const {
-	return 0; // change as per submodule
+	return input_infos.size();
 }
 int VisualScriptSubmoduleNode::get_output_value_port_count() const {
-	return 1; // can't have more than one output value port
+	return output_infos.size();
 }
 
 PropertyInfo VisualScriptSubmoduleNode::get_input_value_port_info(int p_idx) const {
-	return PropertyInfo();
+	ERR_FAIL_INDEX_V(p_idx, input_infos.size(), PropertyInfo());
+	PropertyInfo pi;
+	pi.name = input_infos[p_idx].name;
+	pi.type = input_infos[p_idx].type;
+	return pi;
 }
 PropertyInfo VisualScriptSubmoduleNode::get_output_value_port_info(int p_idx) const {
-	return PropertyInfo();
+	ERR_FAIL_INDEX_V(p_idx, output_infos.size(), PropertyInfo());
+	PropertyInfo pi;
+	pi.name = output_infos[p_idx].name;
+	pi.type = output_infos[p_idx].type;
+	return pi;
 }
 
 String VisualScriptSubmoduleNode::get_caption() const {
@@ -78,16 +87,34 @@ String VisualScriptSubmoduleNode::get_text() const {
 	return "";
 }
 
-void VisualScriptSubmoduleNode::set_submodule(const StringName &p_name, Ref<VisualScriptSubmodule> p_mod) {
+void VisualScriptSubmoduleNode::set_submodule(const String &p_name) {
 	submodule_name = p_name;
-	submodule = p_mod;
+	if (p_name == "" || get_container().is_null()) {
+		return;
+	}
+	Ref<VisualScript> vs = get_container();
+	ERR_FAIL_COND(!vs.is_valid());
+	input_infos.clear();
+	output_infos.clear();
+	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(p_name);
+	ERR_FAIL_COND(!submodule.is_valid());
+	if (submodule->get_node(0).is_valid()) {
+		for (int i = 0; i < submodule->get_node(0)->get_output_value_port_count(); i++) {
+			PropertyInfo p = submodule->get_node(0)->get_output_value_port_info(i);
+			input_infos.push_back({ p.name, p.type });
+		}
+	}
+	if (submodule->get_node(1).is_valid()) {
+		for (int i = 0; i < submodule->get_node(1)->get_input_value_port_count(); i++) {
+			PropertyInfo p = submodule->get_node(1)->get_input_value_port_info(i);
+			output_infos.push_back({ p.name, p.type });
+		}
+	}
+	ports_changed_notify();
+	_change_notify();
 }
 
-Ref<VisualScriptSubmodule> VisualScriptSubmoduleNode::get_submodule() const {
-	return submodule;
-}
-
-StringName VisualScriptSubmoduleNode::get_submodule_name() const {
+String VisualScriptSubmoduleNode::get_submodule_name() const {
 	return submodule_name;
 }
 
@@ -145,28 +172,72 @@ class VisualScriptSubmoduleEntryNodeInstance : public VisualScriptNodeInstance {
 public:
 	//VisualScriptSubmoduleNode *node;
 	VisualScriptInstance *instance;
-
+	VisualScriptSubmoduleEntryNode *node;
 	//virtual int get_working_memory_size() const { return 0; }
 	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
 	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
 
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Callable::CallError &r_error, String &r_error_str) {
-		// not sure if I want to add the submodule call here
-		// TODO: call submodule execution function
+		int ac = node->get_output_value_port_count();
+
+		for (int i = 0; i < ac; i++) {
+#ifdef DEBUG_ENABLED
+			Variant::Type expected = node->get_output_value_port_info(i).type;
+			if (expected != Variant::NIL) {
+				if (!Variant::can_convert_strict(p_inputs[i]->get_type(), expected)) {
+					r_error.error = Callable::CallError::CALL_ERROR_INVALID_ARGUMENT;
+					r_error.expected = expected;
+					r_error.argument = i;
+					return 0;
+				}
+			}
+#endif
+
+			*p_outputs[i] = *p_inputs[i];
+		}
 		return 0;
 	}
 };
 
 VisualScriptNodeInstance *VisualScriptSubmoduleEntryNode::instance(VisualScriptInstance *p_instance) {
 	VisualScriptSubmoduleEntryNodeInstance *instance = memnew(VisualScriptSubmoduleEntryNodeInstance);
-	//instance->node = this;
+	instance->node = this;
 	instance->instance = p_instance;
 	return instance;
 }
 
-VisualScriptSubmoduleEntryNode::VisualScriptSubmoduleEntryNode() {}
+VisualScriptSubmoduleEntryNode::VisualScriptSubmoduleEntryNode() {
+	stack_less = false;
+	stack_size = 256;
+}
 
 VisualScriptSubmoduleEntryNode::~VisualScriptSubmoduleEntryNode() {}
+
+void VisualScriptSubmoduleEntryNode::set_stack_less(bool p_enable) {
+	stack_less = p_enable;
+	_change_notify();
+}
+
+bool VisualScriptSubmoduleEntryNode::is_stack_less() const {
+	return stack_less;
+}
+
+void VisualScriptSubmoduleEntryNode::set_sequenced(bool p_enable) {
+	sequenced = p_enable;
+}
+
+bool VisualScriptSubmoduleEntryNode::is_sequenced() const {
+	return sequenced;
+}
+
+void VisualScriptSubmoduleEntryNode::set_stack_size(int p_size) {
+	ERR_FAIL_COND(p_size < 1 || p_size > 100000);
+	stack_size = p_size;
+}
+
+int VisualScriptSubmoduleEntryNode::get_stack_size() const {
+	return stack_size;
+}
 
 int VisualScriptSubmoduleExitNode::get_input_value_port_count() const {
 	return inputports.size();
@@ -185,15 +256,20 @@ class VisualScriptSubmoduleExitNodeInstance : public VisualScriptNodeInstance {
 public:
 	//VisualScriptSubmoduleNode *node;
 	VisualScriptInstance *instance;
+	bool with_value;
 
-	//virtual int get_working_memory_size() const { return 0; }
+	virtual int get_working_memory_size() const { return 1; }
 	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
 	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
 
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Callable::CallError &r_error, String &r_error_str) {
-		// not sure if I want to add the submodule call here
-		// TODO: call submodule execution function
-		return 0;
+		if (with_value) {
+			*p_working_mem = *p_inputs[0];
+			return STEP_EXIT_FUNCTION_BIT;
+		} else {
+			*p_working_mem = Variant();
+			return 0;
+		}
 	}
 };
 
@@ -201,6 +277,7 @@ VisualScriptNodeInstance *VisualScriptSubmoduleExitNode::instance(VisualScriptIn
 	VisualScriptSubmoduleExitNodeInstance *instance = memnew(VisualScriptSubmoduleExitNodeInstance);
 	//instance->node = this;
 	instance->instance = p_instance;
+	instance->with_value = with_value && false; // !TODO: remove false from here and make with_value work properly
 	return instance;
 }
 

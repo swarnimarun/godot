@@ -655,8 +655,8 @@ private:
 	};
 	HashMap<int, NodeData> nodes;
 
-	NodeData _input;
-	NodeData _output;
+	int _input;
+	int _output;
 
 	Set<VisualScript::DataConnection> data_connections;
 	Set<VisualScript::SequenceConnection> sequence_connections;

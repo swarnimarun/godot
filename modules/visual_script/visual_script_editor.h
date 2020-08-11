@@ -181,6 +181,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 	Ref<VisualScriptSubmodule> curr_submodule; // currently selected submodule
 	bool inside_submodule; // bool to perform quick check to see whether we are editing submodule or the actual script.
 	void _load_submodule(int p_select, int p_id);
+	void _load_submodule_from_path(int p_select, int p_id);
 	void _new_submodule(int p_id);
 
 	void _port_action_menu(int p_option);
