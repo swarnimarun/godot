@@ -245,10 +245,10 @@ void GraphEdit::add_child_notify(Node *p_child) {
 	GraphNode *gn = Object::cast_to<GraphNode>(p_child);
 	if (gn) {
 		gn->set_scale(Vector2(zoom, zoom));
-		gn->connect("offset_changed", callable_mp(this, &GraphEdit::_graph_node_moved), varray(gn));
-		gn->connect("raise_request", callable_mp(this, &GraphEdit::_graph_node_raised), varray(gn));
-		gn->connect("doubleclicked", callable_mp(this, &GraphEdit::_graph_double_clicked), varray(gn));
-		gn->connect("item_rect_changed", callable_mp((CanvasItem *)connections_layer, &CanvasItem::update));
+		gn->connect("offset_changed", callable_mp(this, &GraphEdit::_graph_node_moved), varray(gn), CONNECT_DEFERRED);
+		gn->connect("raise_request", callable_mp(this, &GraphEdit::_graph_node_raised), varray(gn), CONNECT_DEFERRED);
+		gn->connect("doubleclicked", callable_mp(this, &GraphEdit::_graph_double_clicked), varray(gn), CONNECT_DEFERRED);
+		gn->connect("item_rect_changed", callable_mp((CanvasItem *)connections_layer, &CanvasItem::update), varray(), CONNECT_DEFERRED);
 		_graph_node_moved(gn);
 		gn->set_mouse_filter(MOUSE_FILTER_PASS);
 	}
