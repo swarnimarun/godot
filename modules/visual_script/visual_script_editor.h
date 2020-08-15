@@ -87,7 +87,10 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	Ref<VisualScript> script;
 
+	HBoxContainer *base_type_select_hbc;
 	Button *base_type_select;
+
+	Button *save_submodule_btn;
 
 	LineEdit *func_name_box;
 	ScrollContainer *func_input_scroll;
@@ -183,6 +186,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 	void _load_submodule(int p_select, int p_id);
 	void _load_submodule_from_path(int p_select, int p_id);
 	void _new_submodule(int p_id);
+	void _save_submodule();
 
 	void _port_action_menu(int p_option);
 

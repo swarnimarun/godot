@@ -1025,6 +1025,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 	graph->call_deferred("set_scroll_ofs", script->get_scroll() * EDSCALE);
 	updating_graph = false;
 }
+
 void VisualScriptEditor::_new_submodule(int p_id) {
 	Ref<VisualScriptSubmoduleNode> vsn = script->get_node(p_id);
 	if (!vsn.is_valid()) {
@@ -1048,6 +1049,10 @@ void VisualScriptEditor::_new_submodule(int p_id) {
 	undo_redo->add_do_method(this, "_update_graph");
 	undo_redo->add_undo_method(this, "_update_graph");
 	undo_redo->commit_action();
+}
+
+void VisualScriptEditor::_save_submodule() {
+	// TODO: re-implement it after changing the Submodule resource saving format again!
 }
 
 void VisualScriptEditor::_load_submodule(int p_select, int p_id) {
@@ -2889,9 +2894,10 @@ void VisualScriptEditor::_node_double_clicked(Node *p_node) {
 	ERR_FAIL_COND(curr_submodule.is_null());
 	inside_submodule = true;
 	//top_bar->hide();
-	base_type_select->hide();
+	base_type_select_hbc->hide();
 	members_section->hide();
 	func_btn->hide();
+	save_submodule_btn->show();
 	_update_graph();
 }
 
@@ -4355,8 +4361,9 @@ void VisualScriptEditor::_menu_option(int p_what) {
 		case EXIT_SUBMODULE: {
 			inside_submodule = false;
 			updating_graph = false; // force an update
-			base_type_select->show();
+			base_type_select_hbc->show();
 			members_section->show();
+			save_submodule_btn->hide();
 			//top_bar->show();
 			func_btn->show();
 			_update_graph();
@@ -4621,13 +4628,20 @@ VisualScriptEditor::VisualScriptEditor() {
 	/// Add Buttons to Top Bar/Zoom bar.
 	top_bar = graph->get_zoom_hbox();
 
+	base_type_select_hbc = memnew(HBoxContainer);
 	Label *base_lbl = memnew(Label);
 	base_lbl->set_text(TTR("Change Base Type:") + " ");
-	top_bar->add_child(base_lbl);
-
+	base_type_select_hbc->add_child(base_lbl);
 	base_type_select = memnew(Button);
 	base_type_select->connect("pressed", callable_mp(this, &VisualScriptEditor::_change_base_type));
-	top_bar->add_child(base_type_select);
+	base_type_select_hbc->add_child(base_type_select);
+	top_bar->add_child(base_type_select_hbc);
+
+	save_submodule_btn = memnew(Button);
+	save_submodule_btn->set_text("Save Submodule as...");
+	top_bar->add_child(save_submodule_btn);
+	save_submodule_btn->connect("pressed", callable_mp(this, &VisualScriptEditor::_save_submodule));
+	save_submodule_btn->hide();
 
 	Button *add_nds = memnew(Button);
 	add_nds->set_text(TTR("Add Nodes..."));

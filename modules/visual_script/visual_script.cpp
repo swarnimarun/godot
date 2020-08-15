@@ -498,6 +498,7 @@ void VisualScript::add_submodule(const StringName &p_name, Ref<VisualScriptSubmo
 }
 
 Ref<VisualScriptSubmodule> VisualScript::get_submodule(const StringName &p_name) const {
+	ERR_FAIL_COND_V(!submodules.has(p_name), Ref<VisualScriptSubmodule>());
 	return submodules[p_name];
 }
 
@@ -1874,9 +1875,11 @@ Variant VisualScriptInstance::_call_internal(const StringName &p_method, void *p
 
 		if (Ref<VisualScriptSubmoduleNode> modnode = node->get_base_node(); modnode.is_valid()) {
 			// call the submodule and get return?
-			auto s = modnode->get_submodule_name();
-			// print_line(s);
-			auto t = call(s, input_args, node->input_port_count, r_error);
+			String s = modnode->get_submodule_name();
+			Variant t = call(s, input_args, node->input_port_count, r_error);
+			if (node->output_port_count > 0) {
+				*output_args[0] = t;
+			}
 			if (r_error.error != Callable::CallError::CALL_OK) {
 				//use error from step
 				error = true;
@@ -2415,7 +2418,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			{
 				List<int> nd_queue;
 				nd_queue.push_back(function.node);
-				auto sequence_connections = isSubmod ? script->submodules[E->get()]->sequence_connections : script->sequence_connections;
+				Set<VisualScript::SequenceConnection> sequence_connections = isSubmod ? script->submodules[E->get()]->sequence_connections : script->sequence_connections;
 				while (!nd_queue.empty()) {
 					for (const Set<VisualScript::SequenceConnection>::Element *F = sequence_connections.front(); F; F = F->next()) {
 						if (nd_queue.front()->get() == F->get().from_node && !node_ids.has(F->get().to_node)) {
@@ -2428,7 +2431,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					}
 					nd_queue.pop_front();
 				}
-				auto data_connections = isSubmod ? script->submodules[E->get()]->data_connections : script->data_connections;
+				Set<VisualScript::DataConnection> data_connections = isSubmod ? script->submodules[E->get()]->data_connections : script->data_connections;
 				HashMap<int, HashMap<int, Pair<int, int>>> dc_lut; // :: to -> to_port -> (from, from_port)
 				for (const Set<VisualScript::DataConnection>::Element *F = data_connections.front(); F; F = F->next()) {
 					dc_lut[F->get().to_node][F->get().to_port] = Pair<int, int>(F->get().from_node, F->get().from_port);
@@ -2478,12 +2481,6 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				instance->sequence_index = function.node_count++;
 				instance->sequence_outputs = NULL;
 				instance->pass_idx = -1;
-				if (true) {
-					print_line("class name of node: " + instance->get_base_node()->get_class_name());
-					print_line("input_port_count of submod node: " + String::num_int64(instance->input_port_count));
-					print_line("output_port_count of submod node: " + String::num_int64(instance->output_port_count));
-					print_line("output_seq_port_count of submod node: " + String::num_int64(instance->sequence_output_count));
-				}
 
 				if (instance->input_port_count) {
 					instance->input_ports = memnew_arr(int, instance->input_port_count);

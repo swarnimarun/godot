@@ -38,13 +38,6 @@ class VisualScriptSubmoduleNode : public VisualScriptNode {
 	GDCLASS(VisualScriptSubmoduleNode, VisualScriptNode);
 
 	String submodule_name;
-	struct Port {
-		String name;
-		Variant::Type type;
-	};
-	Vector<Port> input_infos;
-	Vector<Port> output_infos;
-
 protected:
 	static void _bind_methods();
 
