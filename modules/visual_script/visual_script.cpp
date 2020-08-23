@@ -169,6 +169,7 @@ VisualScriptNodeInstance::~VisualScriptNodeInstance() {
 
 void VisualScriptSubmodule::_set_data(const Dictionary &p_data) {
 	// used to load data for the resource
+	submodule_name = p_data["submodule_name"];
 	Array nds = p_data["nodes"];
 	for (int i = 0; i < nds.size(); i++) {
 		Dictionary nd = nds[i];
@@ -190,6 +191,7 @@ void VisualScriptSubmodule::_set_data(const Dictionary &p_data) {
 Dictionary VisualScriptSubmodule::_get_data() const {
 	// used to save data
 	Dictionary d;
+	d["submodule_name"] = submodule_name;
 
 	Array nds;
 	List<int> keys;
@@ -421,6 +423,7 @@ void VisualScriptSubmodule::get_data_connection_list(List<VisualScript::DataConn
 
 VisualScriptSubmodule::VisualScriptSubmodule() {
 	// maybe do some init here
+	submodule_name = "submodule";
 }
 
 VisualScriptSubmodule::~VisualScriptSubmodule() {}
@@ -2457,6 +2460,18 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					nd_queue.pop_front();
 				}
 			}
+
+			// HashMap<int, int> node_ids_remap;
+			// {
+			// 	// make sure all functions have unique instances of the overlapping nodes so as to allow for input typing
+			// 	for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
+			// 		if (instances.has(node_id_offset + F->get())) {
+			// 			offset_node_id += 1;
+			// 			node_ids_remap[node_id_offset + F->get()] = script_end + offset_node_id;
+			// 		}
+			// 		//offset_node_id += 1;
+			// 	}
+			// }
 
 			//multiple passes are required to set up this complex thing..
 			//first create the nodes

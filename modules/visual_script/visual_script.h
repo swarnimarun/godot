@@ -644,11 +644,13 @@ public:
 
 class VisualScriptSubmodule : public Resource {
 	GDCLASS(VisualScriptSubmodule, Resource);
+	OBJ_SAVE_TYPE(VisualScriptSubmodule);
 	RES_BASE_EXTENSION("vsmodule"); // TODO: To be discussed
 
 	friend class VisualScriptInstance;
 
 private:
+	String submodule_name;
 	struct NodeData {
 		Point2 pos;
 		Ref<VisualScriptNode> node;
@@ -671,6 +673,9 @@ private:
 	Dictionary _get_data() const;
 
 public:
+	String get_submodule_name() { return submodule_name; }
+	void set_submodule_name(const String &name) { submodule_name = name; }
+
 	void add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2());
 	void remove_node(int p_id);
 	bool has_node(int p_id) const;

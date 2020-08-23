@@ -1022,7 +1022,11 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 
 	_update_graph_connections();
 	// use default_func instead of default_func for now I think that should be good stop gap solution to ensure not breaking anything
-	graph->call_deferred("set_scroll_ofs", script->get_scroll() * EDSCALE);
+	if (inside_submodule) {
+		graph->call_deferred("set_scroll_ofs", curr_submodule->get_scroll() * EDSCALE);
+	} else {
+		graph->call_deferred("set_scroll_ofs", script->get_scroll() * EDSCALE);
+	}
 	updating_graph = false;
 }
 
@@ -1074,7 +1078,40 @@ void VisualScriptEditor::_load_submodule(int p_select, int p_id) {
 	undo_redo->add_undo_method(this, "_update_graph");
 	undo_redo->commit_action();
 }
-void VisualScriptEditor::_load_submodule_from_path(int p_select, int p_id) {
+
+void VisualScriptEditor::_load_submodule_from_path(int p_id) {
+	load_submodule_resource_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
+
+	List<String> extensions;
+	ResourceLoader::get_recognized_extensions_for_type("VisualScriptSubmodule", &extensions);
+
+	load_submodule_resource_dialog->clear_filters();
+	for (int i = 0; i < extensions.size(); i++) {
+		load_submodule_resource_dialog->add_filter("*." + extensions[i] + " ; " + extensions[i].to_upper());
+	}
+
+	load_submodule_resource_dialog->popup_file_dialog();
+}
+
+void VisualScriptEditor::_submodule_selected(String p_file) {
+	RES res = ResourceLoader::load(p_file);
+
+	if (res.is_null()) {
+		ERR_PRINT(TTR("Failed to load resource."));
+		return;
+	};
+
+	Ref<VisualScriptSubmodule> vsmod = res;
+	if (vsmod.is_null()) {
+		ERR_PRINT(TTR("Resource not valid Submodule."));
+		return;
+	};
+
+	if (script->has_submodule(vsmod->get_submodule_name())) {
+		ERR_PRINT(TTR("Submodule with same name already exists."));
+		return;
+	};
+	script->add_submodule(vsmod->get_submodule_name(), vsmod);
 }
 
 void VisualScriptEditor::_change_port_type(int p_select, int p_id, int p_port, bool is_input) {
@@ -3912,8 +3949,11 @@ void VisualScriptEditor::_graph_ofs_changed(const Vector2 &p_ofs) {
 	}
 
 	updating_graph = true;
-
-	script->set_scroll(graph->get_scroll_ofs() / EDSCALE);
+	if (inside_submodule) {
+		curr_submodule->set_scroll(graph->get_scroll_ofs() / EDSCALE);
+	} else {
+		script->set_scroll(graph->get_scroll_ofs() / EDSCALE);
+	}
 	script->set_edited(true);
 	updating_graph = false;
 }
@@ -4364,7 +4404,6 @@ void VisualScriptEditor::_menu_option(int p_what) {
 			base_type_select_hbc->show();
 			members_section->show();
 			save_submodule_btn->hide();
-			//top_bar->show();
 			func_btn->show();
 			_update_graph();
 		} break;
@@ -4652,6 +4691,11 @@ VisualScriptEditor::VisualScriptEditor() {
 	func_btn->set_text(TTR("Add Function..."));
 	top_bar->add_child(func_btn);
 	func_btn->connect("pressed", callable_mp(this, &VisualScriptEditor::_create_function_dialog));
+
+	load_submodule_resource_dialog = memnew(EditorFileDialog);
+	add_child(load_submodule_resource_dialog);
+	load_submodule_resource_dialog->set_current_dir("res://");
+	load_submodule_resource_dialog->connect("file_selected", callable_mp(this, &VisualScriptEditor::_submodule_selected));
 
 	// Add Function Dialog.
 	VBoxContainer *function_vb = memnew(VBoxContainer);

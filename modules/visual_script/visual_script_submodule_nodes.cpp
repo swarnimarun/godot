@@ -63,10 +63,10 @@ int VisualScriptSubmoduleNode::get_input_value_port_count() const {
 		return 0;
 	}
 	Ref<VisualScript> vs = get_container();
-	ERR_FAIL_COND_V(vs.is_null(), 0);
+	ERR_FAIL_COND_V(!vs.is_valid(), 0);
 
 	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
-	ERR_FAIL_COND_V(submodule.is_null(), 0);
+	ERR_FAIL_COND_V(!submodule.is_valid(), 0);
 
 	Ref<VisualScriptNode> entry_node = submodule->get_node(0);
 	ERR_FAIL_COND_V(!entry_node.is_valid(), 0);
