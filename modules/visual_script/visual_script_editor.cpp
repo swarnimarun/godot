@@ -1111,6 +1111,14 @@ void VisualScriptEditor::_submodule_selected(String p_file) {
 		ERR_PRINT(TTR("Submodule with same name already exists."));
 		return;
 	};
+	if (!vsmod->has_node(0)) {
+		Ref<VisualScriptSubmoduleEntryNode> vsentry;
+		vsentry.instance();
+		vsmod->add_node(0, vsentry);
+		Ref<VisualScriptSubmoduleExitNode> vsexit;
+		vsexit.instance();
+		vsmod->add_node(1, vsexit);
+	}
 	script->add_submodule(vsmod->get_submodule_name(), vsmod);
 }
 
