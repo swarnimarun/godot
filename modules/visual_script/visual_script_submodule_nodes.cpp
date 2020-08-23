@@ -172,9 +172,7 @@ VisualScriptSubmoduleNode::~VisualScriptSubmoduleNode() {}
 // VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
 
 void register_visual_script_submodule_nodes() {
-	VisualScriptLanguage::singleton->add_register_func("functions/submodule_node", create_node_generic<VisualScriptSubmoduleNode>);
-	VisualScriptLanguage::singleton->add_register_func("submodule/entry_node", create_node_generic<VisualScriptSubmoduleEntryNode>);
-	VisualScriptLanguage::singleton->add_register_func("submodule/exit_node", create_node_generic<VisualScriptSubmoduleExitNode>);
+	VisualScriptLanguage::singleton->add_register_func("submodules/submodule_node", create_node_generic<VisualScriptSubmoduleNode>);
 }
 
 int VisualScriptSubmoduleEntryNode::get_output_value_port_count() const {
