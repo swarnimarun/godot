@@ -423,7 +423,7 @@ void VisualScriptSubmodule::get_data_connection_list(List<VisualScript::DataConn
 
 VisualScriptSubmodule::VisualScriptSubmodule() {
 	// maybe do some init here
-	submodule_name = "submodule";
+	submodule_name = "Submodule";
 }
 
 VisualScriptSubmodule::~VisualScriptSubmodule() {}
@@ -500,8 +500,12 @@ void VisualScript::add_submodule(const StringName &p_name, Ref<VisualScriptSubmo
 	}
 }
 
+void VisualScript::remove_submodule(const StringName &p_name) {
+	submodules.erase(p_name);
+}
+
 Ref<VisualScriptSubmodule> VisualScript::get_submodule(const StringName &p_name) const {
-	ERR_FAIL_COND_V(!submodules.has(p_name), Ref<VisualScriptSubmodule>());
+	ERR_FAIL_COND_V(!has_submodule(p_name), Ref<VisualScriptSubmodule>());
 	return submodules[p_name];
 }
 
@@ -2358,7 +2362,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 		Set<int> function_nodes;
 		for (const List<StringName>::Element *E = keys.front(); E; E = E->next()) {
 			function_nodes.insert(script->functions[E->get()].func_id);
-		}	
+		}
 		script->submodules.get_key_list(&keys);
 		int offset_node_id = 0;
 		int script_end = script->get_available_id();
@@ -2431,7 +2435,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 						nd_queue.pop_front();
 						continue;
 					}
-					for (const Set<VisualScript::SequenceConnection>::Element *F = sequence_connections.front(); F; F = F->next()) {	
+					for (const Set<VisualScript::SequenceConnection>::Element *F = sequence_connections.front(); F; F = F->next()) {
 						if (nd_queue.front()->get() == F->get().from_node && !node_ids.has(F->get().to_node)) {
 							nd_queue.push_back(F->get().to_node);
 							node_ids.insert(F->get().to_node);

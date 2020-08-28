@@ -115,6 +115,7 @@ class VisualScriptNodeInstance {
 		INPUT_DEFAULT_VALUE_BIT = INPUT_SHIFT, // from unassigned input port, using default value (edited by user)
 	};
 
+	// TODO: Intialize all properties with default values
 	int id;
 	int sequence_index;
 	VisualScriptNodeInstance **sequence_outputs;
@@ -217,7 +218,7 @@ private:
 		Ref<VisualScriptNode> node;
 	};
 
-	HashMap<int, NodeData> nodes; // can be a sparse map
+	HashMap<int, NodeData> nodes;
 
 	Set<SequenceConnection> sequence_connections;
 	Set<DataConnection> data_connections;
@@ -650,6 +651,7 @@ class VisualScriptSubmodule : public Resource {
 	friend class VisualScriptInstance;
 
 private:
+	// REMOVE THIS!!
 	String submodule_name;
 	struct NodeData {
 		Point2 pos;
@@ -674,7 +676,7 @@ private:
 
 public:
 	String get_submodule_name() { return submodule_name; }
-	void set_submodule_name(const String &name) { submodule_name = name; }
+	void set_submodule_name(String name) { submodule_name = name; }
 
 	void add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2());
 	void remove_node(int p_id);

@@ -181,15 +181,22 @@ class VisualScriptEditor : public ScriptEditorBase {
 
 	Vector2 mouse_up_position;
 
+	enum {
+		LOAD_SUBMODULE = 0,
+		SAVE_SUBMODULE = 1
+	} submodule_action;
+
 	Ref<VisualScriptSubmodule> curr_submodule;
 	bool inside_submodule;
-	EditorFileDialog *load_submodule_resource_dialog;
+	LineEdit *submodule_name_box;
+	EditorFileDialog *submodule_resource_dialog;
 
 	void _load_submodule(int p_select, int p_id);
 	void _load_submodule_from_path(int p_id);
 	void _new_submodule(int p_id);
 	void _save_submodule();
-	void _submodule_selected(String p_file);
+	void _submodule_name_save();
+	void _submodule_action(String p_file);
 
 	void _port_action_menu(int p_option);
 

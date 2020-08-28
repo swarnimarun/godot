@@ -1035,9 +1035,10 @@ void VisualScriptEditor::_new_submodule(int p_id) {
 	if (!vsn.is_valid()) {
 		return;
 	}
-	StringName s = script->validate_submodule_name("Submodule");
+	String s = script->validate_submodule_name("Submodule");
 	Ref<VisualScriptSubmodule> new_submodule;
-	new_submodule.instance(); // DON'T forget this!! LMAo
+	new_submodule.instance();
+	new_submodule->set_submodule_name(s);
 	if (!new_submodule->has_node(0)) {
 		Ref<VisualScriptSubmoduleEntryNode> vsentry;
 		vsentry.instance();
@@ -1055,8 +1056,35 @@ void VisualScriptEditor::_new_submodule(int p_id) {
 	undo_redo->commit_action();
 }
 
+void VisualScriptEditor::_submodule_name_save() {
+	String s = script->validate_submodule_name(submodule_name_box->get_text());
+	submodule_name_box->set_text(s);
+
+	script->remove_submodule(curr_submodule->get_submodule_name());
+	curr_submodule->set_submodule_name(s);
+	script->add_submodule(curr_submodule->get_submodule_name(), curr_submodule);
+	curr_submodule->_change_notify();
+	curr_submodule->set_edited(true); // ?
+}
+
 void VisualScriptEditor::_save_submodule() {
-	// TODO: re-implement it after changing the Submodule resource saving format again!
+	submodule_resource_dialog->set_file_mode(EditorFileDialog::FILE_MODE_SAVE_FILE);
+
+	List<String> extensions;
+	ResourceLoader::get_recognized_extensions_for_type("VisualScriptSubmodule", &extensions);
+
+	submodule_resource_dialog->clear_filters();
+	for (int i = 0; i < extensions.size(); i++) {
+		if (extensions[i] == "tres" || extensions[i] == "res") {
+			// this is annoying
+			continue;
+		}
+		submodule_resource_dialog->add_filter("*." + extensions[i] + " ; " + extensions[i].to_upper());
+	}
+
+	submodule_action = SAVE_SUBMODULE;
+	submodule_resource_dialog->set_title(TTR("Save Submodule As..."));
+	submodule_resource_dialog->popup_file_dialog();
 }
 
 void VisualScriptEditor::_load_submodule(int p_select, int p_id) {
@@ -1080,46 +1108,79 @@ void VisualScriptEditor::_load_submodule(int p_select, int p_id) {
 }
 
 void VisualScriptEditor::_load_submodule_from_path(int p_id) {
-	load_submodule_resource_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
-
+	submodule_resource_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
+	submodule_action = LOAD_SUBMODULE;
 	List<String> extensions;
 	ResourceLoader::get_recognized_extensions_for_type("VisualScriptSubmodule", &extensions);
 
-	load_submodule_resource_dialog->clear_filters();
+	submodule_resource_dialog->clear_filters();
 	for (int i = 0; i < extensions.size(); i++) {
-		load_submodule_resource_dialog->add_filter("*." + extensions[i] + " ; " + extensions[i].to_upper());
+		if (extensions[i] == "tres" || extensions[i] == "res") {
+			// this is annoying
+			continue;
+		}
+		submodule_resource_dialog->add_filter("*." + extensions[i] + " ; " + extensions[i].to_upper());
 	}
-
-	load_submodule_resource_dialog->popup_file_dialog();
+	submodule_resource_dialog->set_title(TTR("Load Submodule from..."));
+	submodule_resource_dialog->popup_file_dialog();
 }
 
-void VisualScriptEditor::_submodule_selected(String p_file) {
-	RES res = ResourceLoader::load(p_file);
+void VisualScriptEditor::_submodule_action(String p_file) {
+	switch (submodule_action) {
+		case LOAD_SUBMODULE: {
+			RES res = ResourceLoader::load(p_file);
+			if (res.is_null()) {
+				ERR_PRINT("Failed to load resource.");
+				return;
+			};
 
-	if (res.is_null()) {
-		ERR_PRINT(TTR("Failed to load resource."));
-		return;
-	};
+			Ref<VisualScriptSubmodule> vsmod = res;
+			if (vsmod.is_null()) {
+				ERR_PRINT("Resource not valid Submodule.");
+				return;
+			};
 
-	Ref<VisualScriptSubmodule> vsmod = res;
-	if (vsmod.is_null()) {
-		ERR_PRINT(TTR("Resource not valid Submodule."));
-		return;
-	};
+			if (script->has_submodule(vsmod->get_submodule_name())) {
+				ERR_PRINT("Submodule with same name already exists.");
+				return;
+			};
+			if (!vsmod->has_node(0)) {
+				Ref<VisualScriptSubmoduleEntryNode> vsentry;
+				vsentry.instance();
+				vsmod->add_node(0, vsentry);
+				Ref<VisualScriptSubmoduleExitNode> vsexit;
+				vsexit.instance();
+				vsmod->add_node(1, vsexit);
+			}
+			script->add_submodule(vsmod->get_submodule_name(), vsmod);
+		} break;
+		case SAVE_SUBMODULE: {
+			int flg = 0;
+			if (EditorSettings::get_singleton()->get("filesystem/on_save/compress_binary_resources")) {
+				flg |= ResourceSaver::FLAG_COMPRESS;
+			}
 
-	if (script->has_submodule(vsmod->get_submodule_name())) {
-		ERR_PRINT(TTR("Submodule with same name already exists."));
-		return;
-	};
-	if (!vsmod->has_node(0)) {
-		Ref<VisualScriptSubmoduleEntryNode> vsentry;
-		vsentry.instance();
-		vsmod->add_node(0, vsentry);
-		Ref<VisualScriptSubmoduleExitNode> vsexit;
-		vsexit.instance();
-		vsmod->add_node(1, vsexit);
+			String path = ProjectSettings::get_singleton()->localize_path(p_file);
+			Error err = ResourceSaver::save(path, curr_submodule, flg | ResourceSaver::FLAG_REPLACE_SUBRESOURCE_PATHS);
+
+			if (err != OK) {
+				// TODO: Improve the Error Reporting
+				ERR_PRINT("Error saving resource!");
+				// if (ResourceLoader::is_imported(p_resource->get_path())) {
+				// 	pop_error->show_accept(TTR("Imported resources can't be saved."), TTR("OK"));
+				// } else {
+				// 	pop_error->show_accept(TTR("Error saving resource!"), TTR("OK"));
+				// }
+				// return;
+			}
+
+			((Resource *)curr_submodule.ptr())->set_path(path);
+			curr_submodule->_change_notify();
+		} break;
+		default:
+			ERR_PRINT("Something went wrong with the submodule dialog");
 	}
-	script->add_submodule(vsmod->get_submodule_name(), vsmod);
+	_update_graph();
 }
 
 void VisualScriptEditor::_change_port_type(int p_select, int p_id, int p_port, bool is_input) {
@@ -1935,8 +1996,14 @@ void VisualScriptEditor::_on_nodes_duplicate() {
 		} else {
 			node = script->get_node(F->get());
 		}
+		Ref<VisualScriptNode> dupe;
 
-		Ref<VisualScriptNode> dupe = node->duplicate(true);
+		if (Ref<VisualScriptCustomNode>(node).is_null()) {
+			dupe = node->duplicate(true);
+		} else {
+			// TEST!!!!!
+			dupe = node->duplicate(); // make sure not to copy custom node scripts
+		}
 
 		int new_id = idc++;
 		remap.set(F->get(), new_id);
@@ -2942,6 +3009,8 @@ void VisualScriptEditor::_node_double_clicked(Node *p_node) {
 	base_type_select_hbc->hide();
 	members_section->hide();
 	func_btn->hide();
+	submodule_name_box->set_placeholder(curr_submodule->get_submodule_name());
+	submodule_name_box->show();
 	save_submodule_btn->show();
 	_update_graph();
 }
@@ -3118,7 +3187,11 @@ void VisualScriptEditor::_graph_connected(const String &p_from, int p_from_slot,
 		undo_redo->add_do_method(objptr, "sequence_connect", p_from.to_int(), from_port, p_to.to_int());
 		// this undo error on undo after move can't be removed without painful gymnastics
 		undo_redo->add_undo_method(objptr, "sequence_disconnect", p_from.to_int(), from_port, p_to.to_int());
+		undo_redo->add_do_method(this, "_update_graph");
+		undo_redo->add_undo_method(this, "_update_graph");
 	} else {
+		ERR_FAIL_COND(!Variant::can_convert(from_node->get_output_value_port_info(from_port).type, to_node->get_input_value_port_info(to_port).type));
+
 		bool converted = false;
 
 		Ref<VisualScriptOperator> oper = to_node;
@@ -4411,6 +4484,8 @@ void VisualScriptEditor::_menu_option(int p_what) {
 			updating_graph = false; // force an update
 			base_type_select_hbc->show();
 			members_section->show();
+			submodule_name_box->hide();
+			submodule_name_box->set_text("");
 			save_submodule_btn->hide();
 			func_btn->show();
 			_update_graph();
@@ -4684,6 +4759,16 @@ VisualScriptEditor::VisualScriptEditor() {
 	base_type_select_hbc->add_child(base_type_select);
 	top_bar->add_child(base_type_select_hbc);
 
+	// set this when enter submodule name_box->set_placeholder(TTR("Submodule"));
+	submodule_name_box = memnew(LineEdit);
+	submodule_name_box->set_custom_minimum_size(Size2(120 * EDSCALE, 0));
+	submodule_name_box->set_h_size_flags(SIZE_EXPAND_FILL);
+	submodule_name_box->set_text("");
+	submodule_name_box->set_expand_to_text_length(true);
+	submodule_name_box->connect("focus_exited", callable_mp(this, &VisualScriptEditor::_submodule_name_save));
+	top_bar->add_child(submodule_name_box);
+	submodule_name_box->hide();
+
 	save_submodule_btn = memnew(Button);
 	save_submodule_btn->set_text("Save Submodule as...");
 	top_bar->add_child(save_submodule_btn);
@@ -4700,10 +4785,10 @@ VisualScriptEditor::VisualScriptEditor() {
 	top_bar->add_child(func_btn);
 	func_btn->connect("pressed", callable_mp(this, &VisualScriptEditor::_create_function_dialog));
 
-	load_submodule_resource_dialog = memnew(EditorFileDialog);
-	add_child(load_submodule_resource_dialog);
-	load_submodule_resource_dialog->set_current_dir("res://");
-	load_submodule_resource_dialog->connect("file_selected", callable_mp(this, &VisualScriptEditor::_submodule_selected));
+	submodule_resource_dialog = memnew(EditorFileDialog);
+	add_child(submodule_resource_dialog);
+	submodule_resource_dialog->set_current_dir("res://");
+	submodule_resource_dialog->connect("file_selected", callable_mp(this, &VisualScriptEditor::_submodule_action));
 
 	// Add Function Dialog.
 	VBoxContainer *function_vb = memnew(VBoxContainer);

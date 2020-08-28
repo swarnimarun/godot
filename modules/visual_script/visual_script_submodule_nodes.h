@@ -38,6 +38,7 @@ class VisualScriptSubmoduleNode : public VisualScriptNode {
 	GDCLASS(VisualScriptSubmoduleNode, VisualScriptNode);
 
 	String submodule_name;
+
 protected:
 	static void _bind_methods();
 
@@ -72,6 +73,7 @@ class VisualScriptSubmoduleEntryNode : public VisualScriptLists {
 
 	int stack_size;
 	bool stack_less;
+
 public:
 	virtual bool is_output_port_editable() const override { return true; }
 	virtual bool is_output_port_name_editable() const override { return true; }
@@ -91,7 +93,7 @@ public:
 
 	virtual PropertyInfo get_input_value_port_info(int p_idx) const override { return PropertyInfo(); }
 	virtual PropertyInfo get_output_value_port_info(int p_idx) const override;
-	
+
 	void set_stack_less(bool p_enable);
 	bool is_stack_less() const;
 	void set_sequenced(bool p_enable);
@@ -113,6 +115,7 @@ class VisualScriptSubmoduleExitNode : public VisualScriptLists {
 	GDCLASS(VisualScriptSubmoduleExitNode, VisualScriptLists);
 
 	bool with_value;
+
 public:
 	virtual bool is_output_port_editable() const override { return false; }
 	virtual bool is_output_port_name_editable() const override { return false; }

@@ -38,7 +38,7 @@ void VisualScriptSubmoduleNode::_bind_methods() {
 	// Ref<VisualScript> vs = get_container();
 	// String modules = "None";
 	// if (vs.is_valid()) {
-	// 	List<StringName> mods; 
+	// 	List<StringName> mods;
 	// 	vs->get_submodule_list(&mods);
 	// 	for (const List<StringName>::Element *E = mods.front(); E; E = E->next()) {
 	// 		modules += ", " + E->get();
@@ -47,7 +47,6 @@ void VisualScriptSubmoduleNode::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "submodule_name"), "set_submodule", "get_submodule_name");
 }
-
 
 int VisualScriptSubmoduleNode::get_output_sequence_port_count() const {
 	return 1; // don't need much more
@@ -64,6 +63,10 @@ int VisualScriptSubmoduleNode::get_input_value_port_count() const {
 	}
 	Ref<VisualScript> vs = get_container();
 	ERR_FAIL_COND_V(!vs.is_valid(), 0);
+
+	if (!vs->has_submodule(submodule_name)) {
+		return 0;
+	}
 
 	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
 	ERR_FAIL_COND_V(!submodule.is_valid(), 0);
@@ -96,6 +99,10 @@ PropertyInfo VisualScriptSubmoduleNode::get_input_value_port_info(int p_idx) con
 	}
 	Ref<VisualScript> vs = get_container();
 	ERR_FAIL_COND_V(!vs.is_valid(), PropertyInfo());
+
+	if (!vs->has_submodule(submodule_name)) {
+		return PropertyInfo();
+	}
 
 	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
 	ERR_FAIL_COND_V(!submodule.is_valid(), PropertyInfo());
