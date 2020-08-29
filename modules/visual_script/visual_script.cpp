@@ -34,8 +34,8 @@
 #include "core/os/os.h"
 #include "core/project_settings.h"
 #include "scene/main/node.h"
-#include "visual_script_nodes.h"
 #include "visual_script_module_nodes.h"
+#include "visual_script_nodes.h"
 
 //used by editor, this is not really saved
 void VisualScriptNode::set_breakpoint(bool p_breakpoint) {

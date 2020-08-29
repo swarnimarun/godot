@@ -42,8 +42,8 @@
 #include "visual_script_expression.h"
 #include "visual_script_flow_control.h"
 #include "visual_script_func_nodes.h"
-#include "visual_script_nodes.h"
 #include "visual_script_module_nodes.h"
+#include "visual_script_nodes.h"
 
 #ifdef TOOLS_ENABLED
 class VisualScriptEditorSignalEdit : public Object {
