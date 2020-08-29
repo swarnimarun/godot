@@ -90,7 +90,7 @@ class VisualScriptEditor : public ScriptEditorBase {
 	HBoxContainer *base_type_select_hbc;
 	Button *base_type_select;
 
-	Button *save_submodule_btn;
+	Button *save_module_btn;
 
 	LineEdit *func_name_box;
 	ScrollContainer *func_input_scroll;
@@ -184,19 +184,19 @@ class VisualScriptEditor : public ScriptEditorBase {
 	enum {
 		LOAD_SUBMODULE = 0,
 		SAVE_SUBMODULE = 1
-	} submodule_action;
+	} module_action;
 
-	Ref<VisualScriptSubmodule> curr_submodule;
-	bool inside_submodule;
-	LineEdit *submodule_name_box;
-	EditorFileDialog *submodule_resource_dialog;
+	Ref<VisualScriptModule> curr_module;
+	bool inside_module;
+	LineEdit *module_name_box;
+	EditorFileDialog *module_resource_dialog;
 
-	void _load_submodule(int p_select, int p_id);
-	void _load_submodule_from_path(int p_id);
-	void _new_submodule(int p_id);
-	void _save_submodule();
-	void _submodule_name_save();
-	void _submodule_action(String p_file);
+	void _load_module(int p_select, int p_id);
+	void _load_module_from_path(int p_id);
+	void _new_module(int p_id);
+	void _save_module();
+	void _module_name_save();
+	void _module_action(String p_file);
 
 	void _port_action_menu(int p_option);
 

@@ -39,7 +39,7 @@
 #include "visual_script_flow_control.h"
 #include "visual_script_func_nodes.h"
 #include "visual_script_nodes.h"
-#include "visual_script_submodule_nodes.h"
+#include "visual_script_module_nodes.h"
 #include "visual_script_yield_nodes.h"
 
 VisualScriptLanguage *visual_script_language = nullptr;
@@ -53,12 +53,12 @@ void register_visual_script_types() {
 	ScriptServer::register_language(visual_script_language);
 
 	ClassDB::register_class<VisualScript>();
-	ClassDB::register_class<VisualScriptSubmodule>();
+	ClassDB::register_class<VisualScriptModule>();
 	ClassDB::register_virtual_class<VisualScriptNode>();
 
-	ClassDB::register_class<VisualScriptSubmoduleNode>();
-	ClassDB::register_class<VisualScriptSubmoduleEntryNode>();
-	ClassDB::register_class<VisualScriptSubmoduleExitNode>();
+	ClassDB::register_class<VisualScriptModuleNode>();
+	ClassDB::register_class<VisualScriptModuleEntryNode>();
+	ClassDB::register_class<VisualScriptModuleExitNode>();
 
 	ClassDB::register_class<VisualScriptFunctionState>();
 	ClassDB::register_class<VisualScriptFunction>();
@@ -118,7 +118,7 @@ void register_visual_script_types() {
 	register_visual_script_flow_control_nodes();
 	register_visual_script_yield_nodes();
 	register_visual_script_expression_node();
-	register_visual_script_submodule_nodes();
+	register_visual_script_module_nodes();
 
 #ifdef TOOLS_ENABLED
 	ClassDB::set_current_api(ClassDB::API_EDITOR);

@@ -39,13 +39,13 @@
 class VisualScriptInstance;
 class VisualScriptNodeInstance;
 class VisualScript;
-class VisualScriptSubmodule;
+class VisualScriptModule;
 
 class VisualScriptNode : public Resource {
 	GDCLASS(VisualScriptNode, Resource);
 
 	friend class VisualScript;
-	friend class VisualScriptSubmodule;
+	friend class VisualScriptModule;
 
 	Ref<Resource> container;
 
@@ -248,7 +248,7 @@ private:
 
 	bool is_tool_script;
 
-	HashMap<StringName, Ref<VisualScriptSubmodule>> submodules; // submodules in the visualscript
+	HashMap<StringName, Ref<VisualScriptModule>> modules; // modules in the visualscript
 
 #ifdef TOOLS_ENABLED
 	Set<PlaceHolderScriptInstance *> placeholders;
@@ -273,12 +273,12 @@ public:
 	void set_scroll(const Vector2 &p_scroll);
 	Vector2 get_scroll() const;
 
-	void add_submodule(const StringName &p_name, Ref<VisualScriptSubmodule> p_mod);
-	void remove_submodule(const StringName &p_name);
-	Ref<VisualScriptSubmodule> get_submodule(const StringName &p_name) const;
-	void get_submodule_list(List<StringName> *r_submodule_names) const;
-	bool has_submodule(const StringName &p_name) const;
-	String validate_submodule_name(const StringName &p_name) const;
+	void add_module(const StringName &p_name, Ref<VisualScriptModule> p_mod);
+	void remove_module(const StringName &p_name);
+	Ref<VisualScriptModule> get_module(const StringName &p_name) const;
+	void get_module_list(List<StringName> *r_module_names) const;
+	bool has_module(const StringName &p_name) const;
+	String validate_module_name(const StringName &p_name) const;
 
 	void add_function(const StringName &p_name, int func_node_id);
 	bool has_function(const StringName &p_name) const;
@@ -643,16 +643,16 @@ public:
 	~VisualScriptLanguage();
 };
 
-class VisualScriptSubmodule : public Resource {
-	GDCLASS(VisualScriptSubmodule, Resource);
-	OBJ_SAVE_TYPE(VisualScriptSubmodule);
+class VisualScriptModule : public Resource {
+	GDCLASS(VisualScriptModule, Resource);
+	OBJ_SAVE_TYPE(VisualScriptModule);
 	RES_BASE_EXTENSION("vsmodule"); // TODO: To be discussed
 
 	friend class VisualScriptInstance;
 
 private:
 	// REMOVE THIS!!
-	String submodule_name;
+	String module_name;
 	struct NodeData {
 		Point2 pos;
 		Ref<VisualScriptNode> node;
@@ -675,8 +675,8 @@ private:
 	Dictionary _get_data() const;
 
 public:
-	String get_submodule_name() { return submodule_name; }
-	void set_submodule_name(String name) { submodule_name = name; }
+	String get_module_name() { return module_name; }
+	void set_module_name(String name) { module_name = name; }
 
 	void add_node(int p_id, const Ref<VisualScriptNode> &p_node, const Point2 &p_pos = Point2());
 	void remove_node(int p_id);
@@ -703,8 +703,8 @@ public:
 	void _node_ports_changed(int p_id);
 	Set<int> get_output_sequence_ports_connected(int from_node);
 
-	VisualScriptSubmodule();
-	~VisualScriptSubmodule();
+	VisualScriptModule();
+	~VisualScriptModule();
 };
 
 //aid for registering

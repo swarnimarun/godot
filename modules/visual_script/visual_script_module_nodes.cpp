@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  visual_script_submodule_nodes.cpp                                    */
+/*  visual_script_module_nodes.cpp                                    */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,128 +28,128 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "visual_script_submodule_nodes.h"
+#include "visual_script_module_nodes.h"
 
-void VisualScriptSubmoduleNode::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_submodule", "submodule_name"), &VisualScriptSubmoduleNode::set_submodule);
-	ClassDB::bind_method(D_METHOD("get_submodule_name"), &VisualScriptSubmoduleNode::get_submodule_name);
+void VisualScriptModuleNode::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_module", "module_name"), &VisualScriptModuleNode::set_module);
+	ClassDB::bind_method(D_METHOD("get_module_name"), &VisualScriptModuleNode::get_module_name);
 
 	// TODO: Try to figure out how to do something to show inspector values based on visual script context....
 	// Ref<VisualScript> vs = get_container();
 	// String modules = "None";
 	// if (vs.is_valid()) {
 	// 	List<StringName> mods;
-	// 	vs->get_submodule_list(&mods);
+	// 	vs->get_module_list(&mods);
 	// 	for (const List<StringName>::Element *E = mods.front(); E; E = E->next()) {
 	// 		modules += ", " + E->get();
 	// 	}
 	// }
 
-	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "submodule_name"), "set_submodule", "get_submodule_name");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "module_name"), "set_module", "get_module_name");
 }
 
-int VisualScriptSubmoduleNode::get_output_sequence_port_count() const {
+int VisualScriptModuleNode::get_output_sequence_port_count() const {
 	return 1; // don't need much more
 }
-bool VisualScriptSubmoduleNode::has_input_sequence_port() const {
+bool VisualScriptModuleNode::has_input_sequence_port() const {
 	return true; // change if required
 }
-String VisualScriptSubmoduleNode::get_output_sequence_port_text(int p_port) const {
+String VisualScriptModuleNode::get_output_sequence_port_text(int p_port) const {
 	return ""; // not needed
 }
-int VisualScriptSubmoduleNode::get_input_value_port_count() const {
-	if (submodule_name == "" || get_container().is_null()) {
+int VisualScriptModuleNode::get_input_value_port_count() const {
+	if (module_name == "" || get_container().is_null()) {
 		return 0;
 	}
 	Ref<VisualScript> vs = get_container();
 	ERR_FAIL_COND_V(!vs.is_valid(), 0);
 
-	if (!vs->has_submodule(submodule_name)) {
+	if (!vs->has_module(module_name)) {
 		return 0;
 	}
 
-	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
-	ERR_FAIL_COND_V(!submodule.is_valid(), 0);
+	Ref<VisualScriptModule> module = vs->get_module(module_name);
+	ERR_FAIL_COND_V(!module.is_valid(), 0);
 
-	Ref<VisualScriptNode> entry_node = submodule->get_node(0);
+	Ref<VisualScriptNode> entry_node = module->get_node(0);
 	ERR_FAIL_COND_V(!entry_node.is_valid(), 0);
 
 	return entry_node->get_output_value_port_count();
 }
 
-int VisualScriptSubmoduleNode::get_output_value_port_count() const {
-	if (submodule_name == "" || get_container().is_null()) {
+int VisualScriptModuleNode::get_output_value_port_count() const {
+	if (module_name == "" || get_container().is_null()) {
 		return 0;
 	}
 	Ref<VisualScript> vs = get_container();
 	ERR_FAIL_COND_V(!vs.is_valid(), 0);
 
-	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
-	ERR_FAIL_COND_V(!submodule.is_valid(), 0);
+	Ref<VisualScriptModule> module = vs->get_module(module_name);
+	ERR_FAIL_COND_V(!module.is_valid(), 0);
 
-	Ref<VisualScriptNode> exit_node = submodule->get_node(1);
+	Ref<VisualScriptNode> exit_node = module->get_node(1);
 	ERR_FAIL_COND_V(!exit_node.is_valid(), 0);
 
 	return exit_node->get_input_value_port_count();
 }
 
-PropertyInfo VisualScriptSubmoduleNode::get_input_value_port_info(int p_idx) const {
-	if (submodule_name == "" || get_container().is_null()) {
+PropertyInfo VisualScriptModuleNode::get_input_value_port_info(int p_idx) const {
+	if (module_name == "" || get_container().is_null()) {
 		return PropertyInfo();
 	}
 	Ref<VisualScript> vs = get_container();
 	ERR_FAIL_COND_V(!vs.is_valid(), PropertyInfo());
 
-	if (!vs->has_submodule(submodule_name)) {
+	if (!vs->has_module(module_name)) {
 		return PropertyInfo();
 	}
 
-	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
-	ERR_FAIL_COND_V(!submodule.is_valid(), PropertyInfo());
+	Ref<VisualScriptModule> module = vs->get_module(module_name);
+	ERR_FAIL_COND_V(!module.is_valid(), PropertyInfo());
 
-	Ref<VisualScriptNode> entry_node = submodule->get_node(0);
+	Ref<VisualScriptNode> entry_node = module->get_node(0);
 	ERR_FAIL_COND_V(!entry_node.is_valid(), PropertyInfo());
 
 	ERR_FAIL_INDEX_V(p_idx, entry_node->get_output_value_port_count(), PropertyInfo());
 	return entry_node->get_output_value_port_info(p_idx);
 }
-PropertyInfo VisualScriptSubmoduleNode::get_output_value_port_info(int p_idx) const {
-	if (submodule_name == "" || get_container().is_null()) {
+PropertyInfo VisualScriptModuleNode::get_output_value_port_info(int p_idx) const {
+	if (module_name == "" || get_container().is_null()) {
 		return PropertyInfo();
 	}
 	Ref<VisualScript> vs = get_container();
 	ERR_FAIL_COND_V(!vs.is_valid(), PropertyInfo());
 
-	Ref<VisualScriptSubmodule> submodule = vs->get_submodule(submodule_name);
-	ERR_FAIL_COND_V(!submodule.is_valid(), PropertyInfo());
+	Ref<VisualScriptModule> module = vs->get_module(module_name);
+	ERR_FAIL_COND_V(!module.is_valid(), PropertyInfo());
 
-	Ref<VisualScriptNode> exit_node = submodule->get_node(1);
+	Ref<VisualScriptNode> exit_node = module->get_node(1);
 	ERR_FAIL_COND_V(!exit_node.is_valid(), PropertyInfo());
 
 	ERR_FAIL_INDEX_V(p_idx, exit_node->get_input_value_port_count(), PropertyInfo());
 	return exit_node->get_input_value_port_info(p_idx);
 }
 
-String VisualScriptSubmoduleNode::get_caption() const {
-	return "Submodule Node";
+String VisualScriptModuleNode::get_caption() const {
+	return "Module Node";
 }
-String VisualScriptSubmoduleNode::get_text() const {
+String VisualScriptModuleNode::get_text() const {
 	return "";
 }
 
-void VisualScriptSubmoduleNode::set_submodule(const String &p_name) {
-	submodule_name = p_name;
+void VisualScriptModuleNode::set_module(const String &p_name) {
+	module_name = p_name;
 	ports_changed_notify();
 	_change_notify();
 }
 
-String VisualScriptSubmoduleNode::get_submodule_name() const {
-	return submodule_name;
+String VisualScriptModuleNode::get_module_name() const {
+	return module_name;
 }
 
-class VisualScriptSubmoduleNodeInstance : public VisualScriptNodeInstance {
+class VisualScriptModuleNodeInstance : public VisualScriptNodeInstance {
 public:
-	VisualScriptSubmoduleNode *node;
+	VisualScriptModuleNode *node;
 	VisualScriptInstance *instance;
 
 	//virtual int get_working_memory_size() const { return 0; }
@@ -157,36 +157,36 @@ public:
 	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
 
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Callable::CallError &r_error, String &r_error_str) {
-		// not sure if I want to add the submodule call here
-		// TODO: call submodule execution function
+		// not sure if I want to add the module call here
+		// TODO: call module execution function
 		return 0;
 	}
 };
 
-VisualScriptNodeInstance *VisualScriptSubmoduleNode::instance(VisualScriptInstance *p_instance) {
-	VisualScriptSubmoduleNodeInstance *instance = memnew(VisualScriptSubmoduleNodeInstance);
+VisualScriptNodeInstance *VisualScriptModuleNode::instance(VisualScriptInstance *p_instance) {
+	VisualScriptModuleNodeInstance *instance = memnew(VisualScriptModuleNodeInstance);
 	instance->node = this;
 	instance->instance = p_instance;
 	return instance;
 }
 
-VisualScriptSubmoduleNode::VisualScriptSubmoduleNode() {
-	submodule_name = "";
+VisualScriptModuleNode::VisualScriptModuleNode() {
+	module_name = "";
 }
 
-VisualScriptSubmoduleNode::~VisualScriptSubmoduleNode() {}
+VisualScriptModuleNode::~VisualScriptModuleNode() {}
 
 // VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
 
-void register_visual_script_submodule_nodes() {
-	VisualScriptLanguage::singleton->add_register_func("submodules/submodule_node", create_node_generic<VisualScriptSubmoduleNode>);
+void register_visual_script_module_nodes() {
+	VisualScriptLanguage::singleton->add_register_func("modules/module_node", create_node_generic<VisualScriptModuleNode>);
 }
 
-int VisualScriptSubmoduleEntryNode::get_output_value_port_count() const {
+int VisualScriptModuleEntryNode::get_output_value_port_count() const {
 	return outputports.size();
 }
 
-PropertyInfo VisualScriptSubmoduleEntryNode::get_output_value_port_info(int p_idx) const {
+PropertyInfo VisualScriptModuleEntryNode::get_output_value_port_info(int p_idx) const {
 	ERR_FAIL_INDEX_V(p_idx, outputports.size(), PropertyInfo());
 
 	PropertyInfo pi;
@@ -195,11 +195,11 @@ PropertyInfo VisualScriptSubmoduleEntryNode::get_output_value_port_info(int p_id
 	return pi;
 }
 
-class VisualScriptSubmoduleEntryNodeInstance : public VisualScriptNodeInstance {
+class VisualScriptModuleEntryNodeInstance : public VisualScriptNodeInstance {
 public:
-	//VisualScriptSubmoduleNode *node;
+	//VisualScriptModuleNode *node;
 	VisualScriptInstance *instance;
-	VisualScriptSubmoduleEntryNode *node;
+	VisualScriptModuleEntryNode *node;
 	//virtual int get_working_memory_size() const { return 0; }
 	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
 	//virtual bool get_output_port_unsequenced(int p_idx,Variant* r_value,Variant* p_working_mem,String &r_error) const { return true; }
@@ -226,51 +226,51 @@ public:
 	}
 };
 
-VisualScriptNodeInstance *VisualScriptSubmoduleEntryNode::instance(VisualScriptInstance *p_instance) {
-	VisualScriptSubmoduleEntryNodeInstance *instance = memnew(VisualScriptSubmoduleEntryNodeInstance);
+VisualScriptNodeInstance *VisualScriptModuleEntryNode::instance(VisualScriptInstance *p_instance) {
+	VisualScriptModuleEntryNodeInstance *instance = memnew(VisualScriptModuleEntryNodeInstance);
 	instance->node = this;
 	instance->instance = p_instance;
 	return instance;
 }
 
-VisualScriptSubmoduleEntryNode::VisualScriptSubmoduleEntryNode() {
+VisualScriptModuleEntryNode::VisualScriptModuleEntryNode() {
 	stack_less = false;
 	stack_size = 256;
 }
 
-VisualScriptSubmoduleEntryNode::~VisualScriptSubmoduleEntryNode() {}
+VisualScriptModuleEntryNode::~VisualScriptModuleEntryNode() {}
 
-void VisualScriptSubmoduleEntryNode::set_stack_less(bool p_enable) {
+void VisualScriptModuleEntryNode::set_stack_less(bool p_enable) {
 	stack_less = p_enable;
 	_change_notify();
 }
 
-bool VisualScriptSubmoduleEntryNode::is_stack_less() const {
+bool VisualScriptModuleEntryNode::is_stack_less() const {
 	return stack_less;
 }
 
-void VisualScriptSubmoduleEntryNode::set_sequenced(bool p_enable) {
+void VisualScriptModuleEntryNode::set_sequenced(bool p_enable) {
 	sequenced = p_enable;
 }
 
-bool VisualScriptSubmoduleEntryNode::is_sequenced() const {
+bool VisualScriptModuleEntryNode::is_sequenced() const {
 	return sequenced;
 }
 
-void VisualScriptSubmoduleEntryNode::set_stack_size(int p_size) {
+void VisualScriptModuleEntryNode::set_stack_size(int p_size) {
 	ERR_FAIL_COND(p_size < 1 || p_size > 100000);
 	stack_size = p_size;
 }
 
-int VisualScriptSubmoduleEntryNode::get_stack_size() const {
+int VisualScriptModuleEntryNode::get_stack_size() const {
 	return stack_size;
 }
 
-int VisualScriptSubmoduleExitNode::get_input_value_port_count() const {
+int VisualScriptModuleExitNode::get_input_value_port_count() const {
 	return inputports.size();
 }
 
-PropertyInfo VisualScriptSubmoduleExitNode::get_input_value_port_info(int p_idx) const {
+PropertyInfo VisualScriptModuleExitNode::get_input_value_port_info(int p_idx) const {
 	ERR_FAIL_INDEX_V(p_idx, inputports.size(), PropertyInfo());
 
 	PropertyInfo pi;
@@ -279,9 +279,9 @@ PropertyInfo VisualScriptSubmoduleExitNode::get_input_value_port_info(int p_idx)
 	return pi;
 }
 
-class VisualScriptSubmoduleExitNodeInstance : public VisualScriptNodeInstance {
+class VisualScriptModuleExitNodeInstance : public VisualScriptNodeInstance {
 public:
-	//VisualScriptSubmoduleNode *node;
+	//VisualScriptModuleNode *node;
 	VisualScriptInstance *instance;
 	bool with_value;
 
@@ -300,14 +300,14 @@ public:
 	}
 };
 
-VisualScriptNodeInstance *VisualScriptSubmoduleExitNode::instance(VisualScriptInstance *p_instance) {
-	VisualScriptSubmoduleExitNodeInstance *instance = memnew(VisualScriptSubmoduleExitNodeInstance);
+VisualScriptNodeInstance *VisualScriptModuleExitNode::instance(VisualScriptInstance *p_instance) {
+	VisualScriptModuleExitNodeInstance *instance = memnew(VisualScriptModuleExitNodeInstance);
 	//instance->node = this;
 	instance->instance = p_instance;
 	instance->with_value = get_input_value_port_count() > 0 ? true : false;
 	return instance;
 }
 
-VisualScriptSubmoduleExitNode::VisualScriptSubmoduleExitNode() {}
+VisualScriptModuleExitNode::VisualScriptModuleExitNode() {}
 
-VisualScriptSubmoduleExitNode::~VisualScriptSubmoduleExitNode() {}
+VisualScriptModuleExitNode::~VisualScriptModuleExitNode() {}

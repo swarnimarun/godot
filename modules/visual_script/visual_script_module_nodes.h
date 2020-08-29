@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  visual_script_submodule_nodes.h                                      */
+/*  visual_script_module_nodes.h                                      */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,16 +28,16 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef VISUAL_SCRIPT_SUBMODULE_NODES_H
-#define VISUAL_SCRIPT_SUBMODULE_NODES_H
+#ifndef VISUAL_SCRIPT_MODULE_NODES_H
+#define VISUAL_SCRIPT_MODULE_NODES_H
 
 #include "visual_script.h"
 #include "visual_script_nodes.h"
 
-class VisualScriptSubmoduleNode : public VisualScriptNode {
-	GDCLASS(VisualScriptSubmoduleNode, VisualScriptNode);
+class VisualScriptModuleNode : public VisualScriptNode {
+	GDCLASS(VisualScriptModuleNode, VisualScriptNode);
 
-	String submodule_name;
+	String module_name;
 
 protected:
 	static void _bind_methods();
@@ -58,18 +58,18 @@ public:
 	virtual String get_text() const override;
 	virtual String get_category() const override { return "functions"; }
 
-	void set_submodule(const String &p_name);
-	String get_submodule_name() const;
-	void set_submodule_by_name(const StringName &p_name);
+	void set_module(const String &p_name);
+	String get_module_name() const;
+	void set_module_by_name(const StringName &p_name);
 
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance) override;
 
-	VisualScriptSubmoduleNode();
-	~VisualScriptSubmoduleNode();
+	VisualScriptModuleNode();
+	~VisualScriptModuleNode();
 };
 
-class VisualScriptSubmoduleEntryNode : public VisualScriptLists {
-	GDCLASS(VisualScriptSubmoduleEntryNode, VisualScriptLists);
+class VisualScriptModuleEntryNode : public VisualScriptLists {
+	GDCLASS(VisualScriptModuleEntryNode, VisualScriptLists);
 
 	int stack_size;
 	bool stack_less;
@@ -103,16 +103,16 @@ public:
 
 	virtual String get_caption() const override { return "Entry"; }
 	virtual String get_text() const override { return ""; }
-	virtual String get_category() const override { return "submodule"; }
+	virtual String get_category() const override { return "module"; }
 
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance) override;
 
-	VisualScriptSubmoduleEntryNode();
-	~VisualScriptSubmoduleEntryNode();
+	VisualScriptModuleEntryNode();
+	~VisualScriptModuleEntryNode();
 };
 
-class VisualScriptSubmoduleExitNode : public VisualScriptLists {
-	GDCLASS(VisualScriptSubmoduleExitNode, VisualScriptLists);
+class VisualScriptModuleExitNode : public VisualScriptLists {
+	GDCLASS(VisualScriptModuleExitNode, VisualScriptLists);
 
 	bool with_value;
 
@@ -138,14 +138,14 @@ public:
 
 	virtual String get_caption() const override { return "Exit"; }
 	virtual String get_text() const override { return ""; }
-	virtual String get_category() const override { return "submodule"; }
+	virtual String get_category() const override { return "module"; }
 
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance) override;
 
-	VisualScriptSubmoduleExitNode();
-	~VisualScriptSubmoduleExitNode();
+	VisualScriptModuleExitNode();
+	~VisualScriptModuleExitNode();
 };
 
-void register_visual_script_submodule_nodes();
+void register_visual_script_module_nodes();
 
 #endif // VISUAL_SCRIPT_SUBMODULE_NODES_H
