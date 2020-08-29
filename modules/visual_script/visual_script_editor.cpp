@@ -2861,6 +2861,8 @@ void VisualScriptEditor::_graph_connected(const String &p_from, int p_from_slot,
 		undo_redo->add_do_method(script.ptr(), "sequence_connect", p_from.to_int(), from_port, p_to.to_int());
 		// this undo error on undo after move can't be removed without painful gymnastics
 		undo_redo->add_undo_method(script.ptr(), "sequence_disconnect", p_from.to_int(), from_port, p_to.to_int());
+		undo_redo->add_do_method(this, "_update_graph");
+		undo_redo->add_undo_method(this, "_update_graph");
 	} else {
 		bool converted = false;
 
@@ -2915,9 +2917,6 @@ void VisualScriptEditor::_graph_connected(const String &p_from, int p_from_slot,
 		}
 	}
 
-	undo_redo->add_do_method(this, "_update_graph_connections");
-	undo_redo->add_undo_method(this, "_update_graph_connections");
-
 	undo_redo->commit_action();
 }
 
@@ -2949,6 +2948,8 @@ void VisualScriptEditor::_graph_disconnected(const String &p_from, int p_from_sl
 	if (from_seq) {
 		undo_redo->add_do_method(script.ptr(), "sequence_disconnect", p_from.to_int(), from_port, p_to.to_int());
 		undo_redo->add_undo_method(script.ptr(), "sequence_connect", p_from.to_int(), from_port, p_to.to_int());
+		undo_redo->add_do_method(this, "_update_graph");
+		undo_redo->add_undo_method(this, "_update_graph");
 	} else {
 		can_swap = true;
 		data_disconnect_node = p_to.to_int();
@@ -2962,8 +2963,6 @@ void VisualScriptEditor::_graph_disconnected(const String &p_from, int p_from_sl
 		undo_redo->add_undo_method(this, "_update_graph", p_from.to_int());
 		undo_redo->add_undo_method(this, "_update_graph", p_to.to_int());
 	}
-	undo_redo->add_do_method(this, "_update_graph_connections");
-	undo_redo->add_undo_method(this, "_update_graph_connections");
 
 	undo_redo->commit_action();
 }
@@ -3368,9 +3367,6 @@ void VisualScriptEditor::_selected_connect_node(const String &p_text, const Stri
 		}
 	}
 	_update_graph(port_action_new_node);
-	if (port_node_exists) {
-		_update_graph_connections();
-	}
 }
 
 void VisualScriptEditor::connect_seq(Ref<VisualScriptNode> vnode_old, Ref<VisualScriptNode> vnode_new, int new_id) {
