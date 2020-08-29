@@ -3286,6 +3286,8 @@ void VisualScriptEditor::_graph_disconnected(const String &p_from, int p_from_sl
 	if (from_seq) {
 		undo_redo->add_do_method(objptr, "sequence_disconnect", p_from.to_int(), from_port, p_to.to_int());
 		undo_redo->add_undo_method(objptr, "sequence_connect", p_from.to_int(), from_port, p_to.to_int());
+		undo_redo->add_undo_method(this, "_update_graph");
+		undo_redo->add_undo_method(this, "_update_graph");
 	} else {
 		can_swap = true;
 		data_disconnect_node = p_to.to_int();
