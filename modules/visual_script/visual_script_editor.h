@@ -210,11 +210,11 @@ class VisualScriptEditor : public ScriptEditorBase {
 	EditorFileDialog *module_resource_dialog;
 
 	void _load_module(int p_select, int p_id);
-	void _load_module_from_path(int p_id);
-	void _new_module(int p_id);
+	void _load_module_from_path();
+	void _new_module();
 	void _save_module();
-	void _edit_submodule();
-	void _module_name_save(const String &p_text, Ref<VisualScriptModule> p_module = Ref<VisualScriptModule>());
+	void _edit_module();
+	void _module_name_save(const String &p_text, Ref<VisualScriptModule> p_module);
 	void _module_action(String p_file);
 
 	void _port_action_menu(int p_option);

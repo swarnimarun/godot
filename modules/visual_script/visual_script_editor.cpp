@@ -701,13 +701,6 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 		Ref<VisualScriptModuleNode> nd_mod = node;
 		bool is_mod = nd_mod.is_valid();
 		if (is_mod) {
-			HBoxContainer *hbnc = memnew(HBoxContainer);
-			Button *btn = memnew(Button);
-			btn->set_text(TTR("New"));
-			btn->connect("pressed", callable_mp(this, &VisualScriptEditor::_new_module), varray(E->get()), CONNECT_DEFERRED);
-			Button *btn1 = memnew(Button);
-			btn1->set_text(TTR("Load from Path"));
-			btn1->connect("pressed", callable_mp(this, &VisualScriptEditor::_load_module_from_path), varray(E->get()), CONNECT_DEFERRED);
 			OptionButton *opbtn = memnew(OptionButton);
 			List<StringName> opts;
 			script->get_module_list(&opts);
@@ -722,10 +715,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 			opbtn->select(f);
 			opbtn->set_custom_minimum_size(Size2(100 * EDSCALE, 0));
 			opbtn->connect("item_selected", callable_mp(this, &VisualScriptEditor::_load_module), varray(E->get()), CONNECT_DEFERRED);
-			hbnc->add_child(btn);
-			hbnc->add_child(btn1);
-			hbnc->add_child(opbtn);
-			gnode->add_child(hbnc);
+			gnode->add_child(opbtn);
 			has_gnode_text = true;
 		} else if (is_vslist) {
 			HBoxContainer *hbnc = memnew(HBoxContainer);
@@ -1030,11 +1020,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 	updating_graph = false;
 }
 
-void VisualScriptEditor::_new_module(int p_id) {
-	Ref<VisualScriptModuleNode> vsn = script->get_node(p_id);
-	if (!vsn.is_valid()) {
-		return;
-	}
+void VisualScriptEditor::_new_module() {
 	String s = script->validate_module_name("New Module");
 	Ref<VisualScriptModule> new_module;
 	new_module.instance();
@@ -1048,12 +1034,7 @@ void VisualScriptEditor::_new_module(int p_id) {
 		new_module->add_node(1, vsexit);
 	}
 	script->add_module(s, new_module);
-	undo_redo->create_action("New Module");
-	undo_redo->add_do_method(vsn.ptr(), "set_module", s);
-	undo_redo->add_undo_method(vsn.ptr(), "set_module", vsn->get_module_name());
-	undo_redo->add_do_method(this, "_update_graph");
-	undo_redo->add_undo_method(this, "_update_graph");
-	undo_redo->commit_action();
+	_update_module_panel();
 }
 
 void VisualScriptEditor::_update_module_panel() {
@@ -1063,12 +1044,16 @@ void VisualScriptEditor::_update_module_panel() {
 
 	modules_panel->clear();
 	TreeItem *root = modules_panel->create_item();
+	root->set_text(0, "Module:");
+	root->set_metadata(0, "");
+	root->add_button(0, Control::get_theme_icon("Load", "EditorIcons"), 0, false, TTR("Load Module from path."));
+	root->add_button(0, Control::get_theme_icon("Add", "EditorIcons"), 1, false, TTR("Add a new Module."));
 
 	List<StringName> mod_names;
 	script->get_module_list(&mod_names);
 	mod_names.sort_custom<StringName::AlphCompare>();
 	for (List<StringName>::Element *E = mod_names.front(); E; E = E->next()) {
-		if (modules_panel_search_box->get_text() != "" && String(E->get()).findn(modules_panel_search_box->get_text()) < 0) {
+		if (modules_panel_search_box->get_text() != String() && String(E->get()).findn(modules_panel_search_box->get_text()) < 0) {
 			continue; // skip if not a match
 		}
 		TreeItem *ti = members->create_item(root);
@@ -1091,7 +1076,13 @@ void VisualScriptEditor::_search_module_list(const String &p_text) {
 void VisualScriptEditor::_modules_panel_button(Object *p_item, int p_column, int p_button) {
 	TreeItem *ti = Object::cast_to<TreeItem>(p_item);
 	TreeItem *root = modules_panel->get_root();
-	if (ti->get_parent() == root) {
+	if (ti == root) {
+		if (p_button == 0) {
+			_load_module_from_path();
+		} else if (p_button == 1) {
+			_new_module();
+		}
+	} else if (ti && ti->get_parent() == root) {
 		selected_module = ti->get_text(0);
 		module_name_edit->set_position(Input::get_singleton()->get_mouse_position() - Vector2(60, -10));
 		module_name_edit->popup();
@@ -1104,6 +1095,7 @@ void VisualScriptEditor::_modules_panel_edited() {
 	if (updating_modules_panel) {
 		return;
 	}
+	_update_module_panel();
 }
 
 void VisualScriptEditor::_modules_panel_selected() {
@@ -1118,29 +1110,12 @@ void VisualScriptEditor::_modules_panel_selected() {
 }
 
 void VisualScriptEditor::_modules_panel_gui_input(const Ref<InputEvent> &p_event) {
-	// Ref<InputEventKey> key = p_event;
-	// if (key.is_valid() && key->is_pressed() && !key->is_echo()) {
-	// 	if (modules_panel->has_focus()) {
-	// 		TreeItem *ti = modules_panel->get_selected();
-	// 		if (ti) {
-	// 			TreeItem *root = modules_panel->get_root();
-	// 			module_name = ti->get_text(0);
-	// 		}
-	// 		if (ED_IS_SHORTCUT("visual_script_editor/delete_selected", p_event)) {
-	// 			_member_option(MEMBER_REMOVE);
-	// 		}
-	// 		if (ED_IS_SHORTCUT("visual_script_editor/edit_member", p_event)) {
-	// 			_member_option(MEMBER_EDIT);
-	// 		}
-	// 	}
-	// }
-
 	Ref<InputEventMouseButton> mbt = p_event;
 	if (mbt.is_valid() && mbt->is_doubleclick()) {
 		TreeItem *ti = modules_panel->get_selected();
 		if (ti && ti->get_parent() == modules_panel->get_root()) {
 			curr_module = script->get_module(ti->get_text(0));
-			_edit_submodule();
+			_edit_module();
 		}
 	}
 }
@@ -1215,7 +1190,7 @@ void VisualScriptEditor::_load_module(int p_select, int p_id) {
 	_update_module_panel();
 }
 
-void VisualScriptEditor::_load_module_from_path(int p_id) {
+void VisualScriptEditor::_load_module_from_path() {
 	module_resource_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
 	module_action = LOAD_SUBMODULE;
 	List<String> extensions;
@@ -1290,6 +1265,7 @@ void VisualScriptEditor::_module_action(String p_file) {
 			ERR_PRINT("Something went wrong with the module dialog");
 	}
 	_update_graph();
+	_update_module_panel();
 }
 
 void VisualScriptEditor::_change_port_type(int p_select, int p_id, int p_port, bool is_input) {
@@ -1470,7 +1446,6 @@ void VisualScriptEditor::_update_members() {
 	base_type_select->set_icon(Control::get_theme_icon(icon_type, "EditorIcons"));
 
 	updating_members = false;
-	_update_module_panel();
 }
 
 void VisualScriptEditor::_member_selected() {
@@ -1613,7 +1588,7 @@ void VisualScriptEditor::_create_function_dialog() {
 void VisualScriptEditor::_create_function() {
 	ERR_FAIL_COND(inside_module);
 
-	String name = _validate_name((func_name_box->get_text() == "") ? "new_func" : func_name_box->get_text());
+	String name = _validate_name((func_name_box->get_text() == String()) ? "new_func" : func_name_box->get_text());
 	selected = name;
 	Vector2 ofs = _get_available_pos();
 
@@ -2301,7 +2276,33 @@ void VisualScriptEditor::_fn_name_box_input(const Ref<InputEvent> &p_event) {
 }
 
 Variant VisualScriptEditor::get_drag_data_fw(const Point2 &p_point, Control *p_from) {
-	if (p_from == members && !inside_module) {
+	if (p_from == modules_panel && !inside_module) {
+		TreeItem *it = modules_panel->get_item_at_position(p_point);
+		if (!it) {
+			return Variant();
+		}
+
+		String type = it->get_metadata(0);
+
+		if (type == String()) {
+			return Variant();
+		}
+
+		Dictionary dd;
+		TreeItem *root = modules_panel->get_root();
+
+		if (it->get_parent() == root) {
+			dd["type"] = "visual_script_module_drag";
+			dd["module_name"] = type;
+		} else {
+			return Variant();
+		}
+
+		Label *label = memnew(Label);
+		label->set_text(it->get_text(0));
+		set_drag_preview(label);
+		return dd;
+	} else if (p_from == members && !inside_module) {
 		TreeItem *it = members->get_item_at_position(p_point);
 		if (!it) {
 			return Variant();
@@ -2346,6 +2347,7 @@ bool VisualScriptEditor::can_drop_data_fw(const Point2 &p_point, const Variant &
 						String(d["type"]) == "visual_script_function_drag" ||
 						String(d["type"]) == "visual_script_variable_drag" ||
 						String(d["type"]) == "visual_script_signal_drag" ||
+						String(d["type"]) == "visual_script_module_drag" ||
 						String(d["type"]) == "obj_property" ||
 						String(d["type"]) == "resource" ||
 						String(d["type"]) == "files" ||
@@ -2411,6 +2413,39 @@ void VisualScriptEditor::drop_data_fw(const Point2 &p_point, const Variant &p_da
 
 	if (!d.has("type")) {
 		return;
+	}
+
+	if (String(d["type"]) == "visual_script_module_drag") {
+		if (!d.has("module_name") || !script->has_module(String(d["module_name"]))) {
+			return;
+		}
+
+		Vector2 ofs = graph->get_scroll_ofs() + p_point;
+		if (graph->is_using_snap()) {
+			int snap = graph->get_snap();
+			ofs = ofs.snapped(Vector2(snap, snap));
+		}
+
+		ofs /= EDSCALE;
+
+		Ref<VisualScriptModuleNode> vnode;
+		vnode.instance();
+		vnode->set_module(String(d["module_name"]));
+
+		int new_id = script->get_available_id();
+
+		undo_redo->create_action(TTR("Add Module Node"));
+		undo_redo->add_do_method(script.ptr(), "add_node", new_id, vnode, ofs);
+		undo_redo->add_undo_method(script.ptr(), "remove_node", new_id);
+		undo_redo->add_do_method(this, "_update_graph");
+		undo_redo->add_undo_method(this, "_update_graph");
+		undo_redo->commit_action();
+
+		Node *node = graph->get_node(itos(new_id));
+		if (node) {
+			graph->set_selected(node);
+			_node_selected(node);
+		}
 	}
 
 	if (String(d["type"]) == "visual_script_node_drag") {
@@ -2888,7 +2923,7 @@ String VisualScriptEditor::get_name() {
 			}
 			name += "(*)";
 		}
-	} else if (script->get_name() != "") {
+	} else if (script->get_name() != String()) {
 		name = script->get_name();
 	} else {
 		name = script->get_class() + "(" + itos(script->get_instance_id()) + ")";
@@ -3114,10 +3149,10 @@ void VisualScriptEditor::_node_double_clicked(Node *p_node) {
 		return;
 	}
 	curr_module = script->get_module(vsubnode->get_module_name());
-	_edit_submodule();
+	_edit_module();
 }
 
-void VisualScriptEditor::_edit_submodule() {
+void VisualScriptEditor::_edit_module() {
 	ERR_FAIL_COND(!curr_module.is_valid());
 	inside_module = true;
 	base_type_select_hbc->hide();
@@ -3127,6 +3162,7 @@ void VisualScriptEditor::_edit_submodule() {
 	module_name_box->show();
 	save_module_btn->show();
 	_update_graph();
+	const_cast<VisualScriptEditor *>(this)->_show_hint(TTR("Hit Esc to exit out of Module View into VisualScript."));
 }
 
 void VisualScriptEditor::_node_selected(Node *p_node) {
@@ -4869,11 +4905,12 @@ VisualScriptEditor::VisualScriptEditor() {
 	modules_panel = memnew(Tree);
 	modules_panel->set_custom_minimum_size(Size2(0, 50 * EDSCALE));
 	modules_panel->set_v_size_flags(SIZE_EXPAND_FILL);
-	modules_panel->set_hide_root(true);
 	modules_panel->connect("button_pressed", callable_mp(this, &VisualScriptEditor::_modules_panel_button));
 	modules_panel->connect("item_edited", callable_mp(this, &VisualScriptEditor::_modules_panel_edited));
 	modules_panel->connect("gui_input", callable_mp(this, &VisualScriptEditor::_modules_panel_gui_input));
 	modules_panel->set_allow_reselect(true);
+	modules_panel->set_hide_folding(true);
+	modules_panel->set_drag_forwarding(this);
 
 	modules_section->add_child(modules_panel);
 	members_section->add_margin_child(TTR("Modules:"), modules_section, true);
@@ -4909,11 +4946,11 @@ VisualScriptEditor::VisualScriptEditor() {
 
 	// set this when enter module name_box->set_placeholder(TTR("Module"));
 	module_name_box = memnew(LineEdit);
-	module_name_box->set_custom_minimum_size(Size2(120 * EDSCALE, 0));
+	module_name_box->set_custom_minimum_size(Size2(70 * EDSCALE, 0));
 	module_name_box->set_h_size_flags(SIZE_EXPAND_FILL);
 	module_name_box->set_text("");
 	module_name_box->set_expand_to_text_length(true);
-	module_name_box->connect("text_entered", callable_mp(this, &VisualScriptEditor::_module_name_save));
+	module_name_box->connect("text_entered", callable_mp(this, &VisualScriptEditor::_module_name_save), varray(Ref<VisualScriptModule>()));
 	top_bar->add_child(module_name_box);
 	module_name_box->hide();
 
