@@ -1035,7 +1035,7 @@ void VisualScriptEditor::_new_module(int p_id) {
 	if (!vsn.is_valid()) {
 		return;
 	}
-	String s = script->validate_module_name("Module");
+	String s = script->validate_module_name("New Module");
 	Ref<VisualScriptModule> new_module;
 	new_module.instance();
 	new_module->set_module_name(s);
@@ -1068,7 +1068,7 @@ void VisualScriptEditor::_update_module_panel() {
 	script->get_module_list(&mod_names);
 	mod_names.sort_custom<StringName::AlphCompare>();
 	for (List<StringName>::Element *E = mod_names.front(); E; E = E->next()) {
-		if (String(E->get()).findn(modules_panel_search_box->get_text()) < 0) {
+		if (modules_panel_search_box->get_text() != "" && String(E->get()).findn(modules_panel_search_box->get_text()) < 0) {
 			continue; // skip if not a match
 		}
 		TreeItem *ti = members->create_item(root);
@@ -1084,41 +1084,94 @@ void VisualScriptEditor::_update_module_panel() {
 	updating_modules_panel = false;
 }
 
-void VisualScriptEditor::_modules_popup_option(int p_option) {
-	switch (p_option) {
-		default: {
-		}
-	}
-}
-
 void VisualScriptEditor::_search_module_list(const String &p_text) {
 	_update_module_panel();
 }
 
 void VisualScriptEditor::_modules_panel_button(Object *p_item, int p_column, int p_button) {
+	TreeItem *ti = Object::cast_to<TreeItem>(p_item);
+	TreeItem *root = modules_panel->get_root();
+	if (ti->get_parent() == root) {
+		selected_module = ti->get_text(0);
+		module_name_edit->set_position(Input::get_singleton()->get_mouse_position() - Vector2(60, -10));
+		module_name_edit->popup();
+		module_name_edit_box->set_text(selected_module);
+		module_name_edit_box->select_all();
+	}
 }
 
 void VisualScriptEditor::_modules_panel_edited() {
+	if (updating_modules_panel) {
+		return;
+	}
 }
 
 void VisualScriptEditor::_modules_panel_selected() {
+	if (updating_modules_panel) {
+		return;
+	}
+
+	TreeItem *ti = modules_panel->get_selected();
+	ERR_FAIL_COND(!ti);
+
+	selected_module = ti->get_metadata(0);
 }
 
 void VisualScriptEditor::_modules_panel_gui_input(const Ref<InputEvent> &p_event) {
+	// Ref<InputEventKey> key = p_event;
+	// if (key.is_valid() && key->is_pressed() && !key->is_echo()) {
+	// 	if (modules_panel->has_focus()) {
+	// 		TreeItem *ti = modules_panel->get_selected();
+	// 		if (ti) {
+	// 			TreeItem *root = modules_panel->get_root();
+	// 			module_name = ti->get_text(0);
+	// 		}
+	// 		if (ED_IS_SHORTCUT("visual_script_editor/delete_selected", p_event)) {
+	// 			_member_option(MEMBER_REMOVE);
+	// 		}
+	// 		if (ED_IS_SHORTCUT("visual_script_editor/edit_member", p_event)) {
+	// 			_member_option(MEMBER_EDIT);
+	// 		}
+	// 	}
+	// }
+
+	Ref<InputEventMouseButton> mbt = p_event;
+	if (mbt.is_valid() && mbt->is_doubleclick()) {
+		TreeItem *ti = modules_panel->get_selected();
+		if (ti && ti->get_parent() == modules_panel->get_root()) {
+			curr_module = script->get_module(ti->get_text(0));
+			_edit_submodule();
+		}
+	}
 }
 
-void VisualScriptEditor::_modules_panel_rmb_selected(const Vector2 &p_pos) {
-}
-
-void VisualScriptEditor::_module_name_save(const String &p_text) {
+void VisualScriptEditor::_module_name_save(const String &p_text, Ref<VisualScriptModule> p_module) {
 	String s = script->validate_module_name(p_text);
-	module_name_box->set_text(s);
+	module_name_box->set_placeholder(s);
+	module_name_box->set_text("");
 
-	script->remove_module(curr_module->get_module_name());
-	curr_module->set_module_name(s);
-	script->add_module(curr_module->get_module_name(), curr_module);
-	curr_module->_change_notify();
-	curr_module->set_edited(true); // not sure if needed
+	Ref<VisualScriptModule> mod = p_module.is_valid() ? p_module : curr_module;
+
+	script->remove_module(mod->get_module_name());
+	mod->set_module_name(s);
+	script->add_module(mod->get_module_name(), mod);
+	mod->_change_notify();
+	mod->set_edited(true); // not sure if needed
+	_update_module_panel();
+}
+
+void VisualScriptEditor::_module_name_edit_box_input(const Ref<InputEvent> &p_event) {
+	if (!module_name_edit->is_visible()) {
+		return;
+	}
+
+	Ref<InputEventKey> key = p_event;
+	if (key.is_valid() && key->is_pressed() && key->get_keycode() == KEY_ENTER) {
+		module_name_edit->hide();
+		ERR_FAIL_COND(!script->has_module(selected_module));
+		_module_name_save(module_name_edit_box->get_text(), script->get_module(selected_module));
+		module_name_edit_box->clear();
+	}
 }
 
 void VisualScriptEditor::_save_module() {
@@ -1159,6 +1212,7 @@ void VisualScriptEditor::_load_module(int p_select, int p_id) {
 	undo_redo->add_do_method(this, "_update_graph");
 	undo_redo->add_undo_method(this, "_update_graph");
 	undo_redo->commit_action();
+	_update_module_panel();
 }
 
 void VisualScriptEditor::_load_module_from_path(int p_id) {
@@ -1177,6 +1231,7 @@ void VisualScriptEditor::_load_module_from_path(int p_id) {
 	}
 	module_resource_dialog->set_title(TTR("Load Module from..."));
 	module_resource_dialog->popup_file_dialog();
+	_update_module_panel();
 }
 
 void VisualScriptEditor::_module_action(String p_file) {
@@ -1415,6 +1470,7 @@ void VisualScriptEditor::_update_members() {
 	base_type_select->set_icon(Control::get_theme_icon(icon_type, "EditorIcons"));
 
 	updating_members = false;
+	_update_module_panel();
 }
 
 void VisualScriptEditor::_member_selected() {
@@ -2808,6 +2864,7 @@ void VisualScriptEditor::set_edited_resource(const RES &p_res) {
 
 	_update_graph();
 	_update_members();
+	_update_module_panel();
 }
 
 void VisualScriptEditor::enable_editor() {
@@ -2866,6 +2923,7 @@ void VisualScriptEditor::set_edit_state(const Variant &p_state) {
 
 	_update_graph();
 	_update_members();
+	_update_module_panel();
 
 	if (d.has("scroll")) {
 		graph->set_scroll_ofs(d["scroll"]);
@@ -3040,7 +3098,6 @@ void VisualScriptEditor::clear_edit_menu() {
 
 void VisualScriptEditor::_change_base_type_callback() {
 	String bt = select_base_type->get_selected_type();
-
 	ERR_FAIL_COND(bt == String());
 	undo_redo->create_action(TTR("Change Base Type"));
 	undo_redo->add_do_method(script.ptr(), "set_instance_base_type", bt);
@@ -3057,9 +3114,12 @@ void VisualScriptEditor::_node_double_clicked(Node *p_node) {
 		return;
 	}
 	curr_module = script->get_module(vsubnode->get_module_name());
-	ERR_FAIL_COND(curr_module.is_null());
+	_edit_submodule();
+}
+
+void VisualScriptEditor::_edit_submodule() {
+	ERR_FAIL_COND(!curr_module.is_valid());
 	inside_module = true;
-	//top_bar->hide();
 	base_type_select_hbc->hide();
 	members_section->hide();
 	func_btn->hide();
@@ -4075,6 +4135,7 @@ void VisualScriptEditor::_notification(int p_what) {
 			if (is_visible_in_tree() && script.is_valid()) {
 				_update_members();
 				_update_graph();
+				_update_module_panel();
 			}
 		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
@@ -4793,28 +4854,29 @@ VisualScriptEditor::VisualScriptEditor() {
 	VBoxContainer *modules_section = memnew(VBoxContainer);
 	modules_section->set_v_size_flags(SIZE_EXPAND_FILL);
 
+	module_name_edit = memnew(AcceptDialog);
+	module_name_edit_box = memnew(LineEdit);
+	module_name_edit->add_child(module_name_edit_box);
+	module_name_edit_box->connect("gui_input", callable_mp(this, &VisualScriptEditor::_module_name_edit_box_input));
+	module_name_edit_box->set_expand_to_text_length(true);
+	add_child(module_name_edit);
+
 	modules_panel_search_box = memnew(LineEdit);
-	modules_panel_search_box->set_placeholder("Search Module Name");
+	modules_panel_search_box->set_placeholder(TTR("Search Module Name"));
 	modules_panel_search_box->connect("text_entered", callable_mp(this, &VisualScriptEditor::_search_module_list));
 	modules_section->add_child(modules_panel_search_box);
 
 	modules_panel = memnew(Tree);
 	modules_panel->set_custom_minimum_size(Size2(0, 50 * EDSCALE));
+	modules_panel->set_v_size_flags(SIZE_EXPAND_FILL);
 	modules_panel->set_hide_root(true);
 	modules_panel->connect("button_pressed", callable_mp(this, &VisualScriptEditor::_modules_panel_button));
 	modules_panel->connect("item_edited", callable_mp(this, &VisualScriptEditor::_modules_panel_edited));
-	modules_panel->connect("cell_selected", callable_mp(this, &VisualScriptEditor::_modules_panel_selected), varray(), CONNECT_DEFERRED);
 	modules_panel->connect("gui_input", callable_mp(this, &VisualScriptEditor::_modules_panel_gui_input));
-	modules_panel->connect("item_rmb_selected", callable_mp(this, &VisualScriptEditor::_modules_panel_rmb_selected));
-	modules_panel->set_allow_rmb_select(true);
 	modules_panel->set_allow_reselect(true);
 
 	modules_section->add_child(modules_panel);
 	members_section->add_margin_child(TTR("Modules:"), modules_section, true);
-
-	modules_popup = memnew(PopupMenu);
-	add_child(modules_popup);
-	modules_popup->connect("id_pressed", callable_mp(this, &VisualScriptEditor::_modules_popup_option));
 
 	///       Actual Graph          ///
 
