@@ -699,8 +699,8 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 		Ref<VisualScriptLists> nd_list = node;
 		bool is_vslist = nd_list.is_valid();
 		Ref<VisualScriptModuleNode> nd_mod = node;
-		bool is_submod = nd_mod.is_valid();
-		if (is_submod) {
+		bool is_mod = nd_mod.is_valid();
+		if (is_mod) {
 			HBoxContainer *hbnc = memnew(HBoxContainer);
 			Button *btn = memnew(Button);
 			btn->set_text(TTR("New"));
@@ -1056,15 +1056,69 @@ void VisualScriptEditor::_new_module(int p_id) {
 	undo_redo->commit_action();
 }
 
-void VisualScriptEditor::_module_name_save() {
-	String s = script->validate_module_name(module_name_box->get_text());
+void VisualScriptEditor::_update_module_panel() {
+	ERR_FAIL_COND(!script.is_valid());
+
+	updating_modules_panel = true;
+
+	modules_panel->clear();
+	TreeItem *root = modules_panel->create_item();
+
+	List<StringName> mod_names;
+	script->get_module_list(&mod_names);
+	mod_names.sort_custom<StringName::AlphCompare>();
+	for (List<StringName>::Element *E = mod_names.front(); E; E = E->next()) {
+		if (String(E->get()).findn(modules_panel_search_box->get_text()) < 0) {
+			continue; // skip if not a match
+		}
+		TreeItem *ti = members->create_item(root);
+		ti->set_text(0, E->get());
+		ti->set_selectable(0, true);
+		ti->set_metadata(0, E->get());
+		ti->add_button(0, Control::get_theme_icon("Edit", "EditorIcons"), 0);
+		if (selected_module == E->get()) {
+			ti->select(0);
+		}
+	}
+
+	updating_modules_panel = false;
+}
+
+void VisualScriptEditor::_modules_popup_option(int p_option) {
+	switch (p_option) {
+		default: {
+		}
+	}
+}
+
+void VisualScriptEditor::_search_module_list(const String &p_text) {
+	_update_module_panel();
+}
+
+void VisualScriptEditor::_modules_panel_button(Object *p_item, int p_column, int p_button) {
+}
+
+void VisualScriptEditor::_modules_panel_edited() {
+}
+
+void VisualScriptEditor::_modules_panel_selected() {
+}
+
+void VisualScriptEditor::_modules_panel_gui_input(const Ref<InputEvent> &p_event) {
+}
+
+void VisualScriptEditor::_modules_panel_rmb_selected(const Vector2 &p_pos) {
+}
+
+void VisualScriptEditor::_module_name_save(const String &p_text) {
+	String s = script->validate_module_name(p_text);
 	module_name_box->set_text(s);
 
 	script->remove_module(curr_module->get_module_name());
 	curr_module->set_module_name(s);
 	script->add_module(curr_module->get_module_name(), curr_module);
 	curr_module->_change_notify();
-	curr_module->set_edited(true); // ?
+	curr_module->set_edited(true); // not sure if needed
 }
 
 void VisualScriptEditor::_save_module() {
@@ -3984,6 +4038,9 @@ void VisualScriptEditor::_notification(int p_what) {
 
 			Ref<Theme> tm = EditorNode::get_singleton()->get_theme_base()->get_theme();
 
+			modules_panel_search_box->set_right_icon(tm->get_icon("Search", "EditorIcons"));
+			modules_panel_search_box->set_clear_button_enabled(true);
+
 			bool dark_theme = tm->get_constant("dark_theme", "Editor");
 
 			List<Pair<String, Color>> colors;
@@ -4732,6 +4789,33 @@ VisualScriptEditor::VisualScriptEditor() {
 	function_name_box->set_expand_to_text_length(true);
 	add_child(function_name_edit);
 
+	///          Modules             ///
+	VBoxContainer *modules_section = memnew(VBoxContainer);
+	modules_section->set_v_size_flags(SIZE_EXPAND_FILL);
+
+	modules_panel_search_box = memnew(LineEdit);
+	modules_panel_search_box->set_placeholder("Search Module Name");
+	modules_panel_search_box->connect("text_entered", callable_mp(this, &VisualScriptEditor::_search_module_list));
+	modules_section->add_child(modules_panel_search_box);
+
+	modules_panel = memnew(Tree);
+	modules_panel->set_custom_minimum_size(Size2(0, 50 * EDSCALE));
+	modules_panel->set_hide_root(true);
+	modules_panel->connect("button_pressed", callable_mp(this, &VisualScriptEditor::_modules_panel_button));
+	modules_panel->connect("item_edited", callable_mp(this, &VisualScriptEditor::_modules_panel_edited));
+	modules_panel->connect("cell_selected", callable_mp(this, &VisualScriptEditor::_modules_panel_selected), varray(), CONNECT_DEFERRED);
+	modules_panel->connect("gui_input", callable_mp(this, &VisualScriptEditor::_modules_panel_gui_input));
+	modules_panel->connect("item_rmb_selected", callable_mp(this, &VisualScriptEditor::_modules_panel_rmb_selected));
+	modules_panel->set_allow_rmb_select(true);
+	modules_panel->set_allow_reselect(true);
+
+	modules_section->add_child(modules_panel);
+	members_section->add_margin_child(TTR("Modules:"), modules_section, true);
+
+	modules_popup = memnew(PopupMenu);
+	add_child(modules_popup);
+	modules_popup->connect("id_pressed", callable_mp(this, &VisualScriptEditor::_modules_popup_option));
+
 	///       Actual Graph          ///
 
 	graph = memnew(GraphEdit);
@@ -4767,7 +4851,7 @@ VisualScriptEditor::VisualScriptEditor() {
 	module_name_box->set_h_size_flags(SIZE_EXPAND_FILL);
 	module_name_box->set_text("");
 	module_name_box->set_expand_to_text_length(true);
-	module_name_box->connect("focus_exited", callable_mp(this, &VisualScriptEditor::_module_name_save));
+	module_name_box->connect("text_entered", callable_mp(this, &VisualScriptEditor::_module_name_save));
 	top_bar->add_child(module_name_box);
 	module_name_box->hide();
 
