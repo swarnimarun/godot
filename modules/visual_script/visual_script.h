@@ -115,7 +115,7 @@ class VisualScriptNodeInstance {
 		INPUT_DEFAULT_VALUE_BIT = INPUT_SHIFT, // from unassigned input port, using default value (edited by user)
 	};
 
-	// TODO: Intialize all properties with default values
+	// intialized in constructor
 	int id;
 	int sequence_index;
 	VisualScriptNodeInstance **sequence_outputs;
@@ -651,7 +651,6 @@ class VisualScriptModule : public Resource {
 	friend class VisualScriptInstance;
 
 private:
-	// REMOVE THIS!!
 	String module_name;
 	struct NodeData {
 		Point2 pos;

@@ -147,6 +147,16 @@ VisualScriptNode::VisualScriptNode() {
 VisualScriptNodeInstance::VisualScriptNodeInstance() {
 	sequence_outputs = nullptr;
 	input_ports = nullptr;
+	base = nullptr;
+
+	id = -1;
+	sequence_index = -1;
+	working_mem_idx = -1;
+	pass_idx = -1;
+
+	sequence_output_count = 0;
+	input_port_count = 0;
+	output_port_count = 0;
 }
 
 VisualScriptNodeInstance::~VisualScriptNodeInstance() {
@@ -2367,10 +2377,10 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 		int offset_node_id = 0;
 		int script_end = script->get_available_id();
 		for (const List<StringName>::Element *E = keys.front(); E; E = E->next()) {
-			bool isSubmod = script->modules.has(E->get());
+			bool is_module = script->modules.has(E->get());
 			int node_id_offset = 0;
 			Function function;
-			if (!isSubmod) {
+			if (!is_module) {
 				const VisualScript::Function vsfn = p_script->functions[E->get()];
 				function.node = vsfn.func_id;
 				function.max_stack = 0;
@@ -2394,7 +2404,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				ERR_CONTINUE(function.node < 0);
 			}
 
-			if (!isSubmod) {
+			if (!is_module) {
 				Ref<VisualScriptFunction> func_node = script->get_node(function.node);
 
 				if (func_node.is_null()) {
@@ -2429,9 +2439,9 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			{
 				List<int> nd_queue;
 				nd_queue.push_back(function.node);
-				Set<VisualScript::SequenceConnection> sequence_connections = isSubmod ? script->modules[E->get()]->sequence_connections : script->sequence_connections;
+				Set<VisualScript::SequenceConnection> sequence_connections = is_module ? script->modules[E->get()]->sequence_connections : script->sequence_connections;
 				while (!nd_queue.empty()) {
-					if (!isSubmod && function.node != nd_queue.front()->get() && function_nodes.has(nd_queue.front()->get())) {
+					if (!is_module && function.node != nd_queue.front()->get() && function_nodes.has(nd_queue.front()->get())) {
 						nd_queue.pop_front();
 						continue;
 					}
@@ -2446,7 +2456,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					}
 					nd_queue.pop_front();
 				}
-				Set<VisualScript::DataConnection> data_connections = isSubmod ? script->modules[E->get()]->data_connections : script->data_connections;
+				Set<VisualScript::DataConnection> data_connections = is_module ? script->modules[E->get()]->data_connections : script->data_connections;
 				HashMap<int, HashMap<int, Pair<int, int>>> dc_lut; // :: to -> to_port -> (from, from_port)
 				for (const Set<VisualScript::DataConnection>::Element *F = data_connections.front(); F; F = F->next()) {
 					dc_lut[F->get().to_node][F->get().to_port] = Pair<int, int>(F->get().from_node, F->get().from_port);
@@ -2461,7 +2471,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					for (const List<int>::Element *F = dc_keys.front(); F; F = F->next()) {
 						VisualScript::DataConnection dc;
 						dc.from_node = dc_lut[ky][F->get()].first;
-						if (!isSubmod && function.node != dc.from_node && function_nodes.has(dc.from_node)) {
+						if (!is_module && function.node != dc.from_node && function_nodes.has(dc.from_node)) {
 							continue;
 						}
 						dc.from_port = dc_lut[ky][F->get()].second;
@@ -2491,7 +2501,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			//first create the nodes
 			for (const Set<int>::Element *F = node_ids.front(); F; F = F->next()) {
 				Ref<VisualScriptNode> node;
-				if (isSubmod) {
+				if (is_module) {
 					node = script->modules[E->get()]->nodes[F->get()].node;
 				} else {
 					node = script->nodes[F->get()].node;
@@ -2621,7 +2631,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 				instance_id = node_ids_remap.has(instance_id) ? node_ids_remap[instance_id] : instance_id;
 				ERR_CONTINUE(!instances.has(instance_id)); // use offset for instance from available_id + module id for module nodes
 				Ref<VisualScriptNode> node;
-				if (!isSubmod) {
+				if (!is_module) {
 					node = script->nodes[F->get()].node;
 				} else {
 					node = script->modules[E->get()]->nodes[F->get()].node;
@@ -2644,7 +2654,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 					}
 				}
 			}
-			if (isSubmod) {
+			if (is_module) {
 				function.node += script_end + offset_node_id;
 			}
 			functions[E->get()] = function;
@@ -2657,6 +2667,9 @@ ScriptLanguage *VisualScriptInstance::get_language() {
 }
 
 VisualScriptInstance::VisualScriptInstance() {
+	owner = nullptr;
+	max_input_args = 0;
+	max_output_args = 0;
 }
 
 VisualScriptInstance::~VisualScriptInstance() {
@@ -2763,6 +2776,11 @@ void VisualScriptFunctionState::_bind_methods() {
 }
 
 VisualScriptFunctionState::VisualScriptFunctionState() {
+	node = nullptr;
+	working_mem_index = -1;
+	variant_stack_size = 0;
+	flow_stack_pos = 0;
+	pass = 0;
 }
 
 VisualScriptFunctionState::~VisualScriptFunctionState() {

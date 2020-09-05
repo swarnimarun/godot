@@ -34,28 +34,17 @@ void VisualScriptModuleNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_module", "module_name"), &VisualScriptModuleNode::set_module);
 	ClassDB::bind_method(D_METHOD("get_module_name"), &VisualScriptModuleNode::get_module_name);
 
-	// TODO: Try to figure out how to do something to show inspector values based on visual script context....
-	// Ref<VisualScript> vs = get_container();
-	// String modules = "None";
-	// if (vs.is_valid()) {
-	// 	List<StringName> mods;
-	// 	vs->get_module_list(&mods);
-	// 	for (const List<StringName>::Element *E = mods.front(); E; E = E->next()) {
-	// 		modules += ", " + E->get();
-	// 	}
-	// }
-
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "module_name"), "set_module", "get_module_name");
 }
 
 int VisualScriptModuleNode::get_output_sequence_port_count() const {
-	return 1; // don't need much more
+	return 1; // until it's figured out how to have multiple sequence inputs this can't be more than 1
 }
 bool VisualScriptModuleNode::has_input_sequence_port() const {
-	return true; // change if required
+	return true;
 }
 String VisualScriptModuleNode::get_output_sequence_port_text(int p_port) const {
-	return ""; // not needed
+	return "";
 }
 int VisualScriptModuleNode::get_input_value_port_count() const {
 	if (module_name == "" || get_container().is_null()) {
